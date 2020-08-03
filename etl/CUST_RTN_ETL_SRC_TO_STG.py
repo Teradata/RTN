@@ -151,7 +151,7 @@ iot = pytrends.interest_over_time()
 iot = iot.rename(columns={a: 'Metric_value'})
 iot['Trend_Name'] = 'Covid Search'
 iot['Metric_Name'] = 'Covid'
-iot['current_dttm'] = datetime.datetime.today()
+iot['current_dttm'] = dt.datetime.today()
 iot['Keyword_List'] = a
 iot['Cat_CD'] = cat
 iot['Type'] = 'Interest over time'
@@ -168,7 +168,7 @@ iot = pytrends.interest_over_time()
 iot = iot.rename(columns={a: 'Metric_value'})
 iot['Trend_Name'] = 'Movie Listings & Theater Showtimes'
 iot['Metric_Name'] = 'Interest over time'
-iot['current_dttm'] = datetime.datetime.today()
+iot['current_dttm'] = dt.datetime.today()
 iot['Keyword_List'] = a
 iot['Cat_CD'] = cat
 iot['Type'] ='Interest over time'
@@ -185,7 +185,7 @@ iot = pytrends.interest_over_time()
 iot['Trend_Name'] = 'Tourist Destinations'
 iot = iot.rename(columns={a: 'Metric_value'})
 iot['Metric_Name'] = 'Interest over time'
-iot['current_dttm'] = datetime.datetime.today()
+iot['current_dttm'] = dt.datetime.today()
 iot['Keyword_List'] = a
 iot['Cat_CD'] = cat
 iot['Type'] ='Interest over time'
@@ -363,8 +363,6 @@ print_complete('TSA Travel')
 #############################################################
 # 11) CENSUS Data
 #############################################################
-
-import datetime
 url = (
     'https://www.census.gov/econ/currentdata/export/csv?'
     'programCode=RESCONST&timeSlotType=12&startYear=2018&endYear=2020'
