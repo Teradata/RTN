@@ -347,8 +347,6 @@ df = pd.read_html(str(stat_table), header=0)[0]
 df.columns = (
     'Travel_Date',
     'TravelThroughPut',
-              'TravelThroughPut',
-    'TravelThroughPut',
     'TravelThroughPutLastYear'
 )
 
