@@ -1,0 +1,8 @@
+# Python files
+__pycache__/
+
+# Temporary Data Files
+20[0-9][0-9]_[0-9][0-9]_[0-9][0-9]/
+
+# Confidential files
+params.py
