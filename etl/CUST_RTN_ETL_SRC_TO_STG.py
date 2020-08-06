@@ -22,6 +22,7 @@
 import datetime as dt
 from io import BytesIO
 import json
+from pathlib import Path
 from urllib.request import urlopen
 from zipfile import ZipFile
 
@@ -97,7 +98,6 @@ print_complete("Covid Cases")
 #############################################################
 # 3) Covid Projections
 #############################################################
-from pathlib import Path
 url = (
     'https://ihmecovid19storage.blob.core.windows.net/latest/ihme-covid19.zip'
 )
