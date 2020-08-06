@@ -22,25 +22,13 @@
 #pip install teradataml
 #pip install pytrends
 
-from IPython import get_ipython
-from covid19dh import covid19
-import pytz
-#import tweepy as tw
-import pandas as pd
-import numpy as np
-import sqlalchemy as sqla
-from teradataml.dataframe.dataframe import DataFrame, in_schema
-from teradataml.dataframe.copy_to import copy_to_sql
-from teradataml.context.context import create_context, remove_context, get_connection, get_context
-from teradataml.options.display import display
-from teradataml.dataframe.fastload import fastload
-#import tdconnect
-import getpass
-import datetime
-from datetime import date
-from datetime import datetime, timedelta
 from datetime import datetime
-from teradataml.context.context import *
+
+import pandas as pd
+import pytz
+import sqlalchemy as sqla
+from teradataml.context.context import create_context
+
 import params
 
 eng = sqla.create_engine(
@@ -58,7 +46,6 @@ try:
         "CALL {}.ETL_CUST_DATA_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -68,7 +55,6 @@ try:
         "CALL {}.ETL_LOOKUP_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -78,7 +64,6 @@ try:
         "CALL {}.ETL_COVID_CASES_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -88,7 +73,6 @@ try:
         "CALL {}.ETL_LABOR_STATS_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -98,7 +82,6 @@ try:
         "CALL {}.ETL_COVID_MODEL_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -108,7 +91,6 @@ try:
         "CALL {}.ETL_GOOGLE_MOBILITY_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -118,7 +100,6 @@ try:
         "CALL {}.ETL_BEA_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -128,7 +109,6 @@ try:
         "CALL {}.ETL_GOOGLE_TREND_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -138,7 +118,6 @@ try:
         "CALL {}.ETL_COVID19_DATAHUB_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -148,7 +127,6 @@ try:
         "CALL {}.ETL_FUEL_PROD_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -158,7 +136,6 @@ try:
         "CALL {}.ETL_CONSUMER_SENTIMENT_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -168,7 +145,6 @@ try:
         "CALL {}.ETL_TSA_TRAVEL_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -178,7 +154,6 @@ try:
         "CALL {}.ETL_CENSUS_DATA_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -192,7 +167,6 @@ finally:
         "CALL {}.ETL_POST_LOAD_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
         .format(params.SchemaName)
     )
-    from datetime import datetime
     datetime.utcnow()
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
