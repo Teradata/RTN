@@ -40,13 +40,7 @@ from teradataml.dataframe.copy_to import copy_to_sql
 #import tweepy as tw
 
 import params
-
-
-def print_complete(dsName):
-    print('{} Finished! {}'.format(
-        dsName, dt.datetime.now().strftime("%d-%b-%Y (%H:%M:%S.%f)")
-    ))
-
+from common import print_complete
 
 con = create_context(
     host=params.MyHost, username=params.MyUser, password=params.Password,
