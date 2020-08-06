@@ -28,6 +28,7 @@ import pytz
 #import tweepy as tw
 import pandas as pd
 import numpy as np
+import sqlalchemy as sqla
 from teradataml.dataframe.dataframe import DataFrame, in_schema
 from teradataml.dataframe.copy_to import copy_to_sql
 from teradataml.context.context import create_context, remove_context, get_connection, get_context
@@ -41,7 +42,12 @@ from datetime import datetime, timedelta
 from datetime import datetime
 from teradataml.context.context import *
 import params
-con = create_context(host=params.MyHost, username=params.MyUser, password=params.Password,temp_database_name=params.SchemaName,logmech=params.LogMech)
+
+eng = sqla.create_engine(
+    f'teradatasql://{params.MyUser}:{params.Password}@{params.MyHost}/'
+    f'?LOGMECH={params.LogMech}&TMODE=ANSI'
+)
+con = create_context(tdsqlengine=eng)
 
 #############################################################
 # Stage to Core Loads
@@ -141,10 +147,10 @@ try:
     dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
     timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
     print("ETL_CENSUS_DATA_CORE Finished!  " + timestampStr)
-    
+
 except BaseException as ex:
     print(str(ex))
-    
+
 finally:
     cur_execute (con, "CALL "+params.SchemaName+".ETL_POST_LOAD_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);")
     from datetime import datetime
@@ -169,4 +175,3 @@ QUALIFY 1=ROW_NUMBER() OVER (PARTITION BY Process_Name ORDER BY Process_Dttm DES
 #Fetch the data from Teradata using Pandas Dataframe
 pda = pd.read_sql(query,con)
 print(pda)
-
