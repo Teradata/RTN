@@ -135,10 +135,20 @@ finally:
 
 pda = pd.read_sql('DATABASE '+params.SchemaName,con)
 
-query = "select Process_Name, Table_Type, TableName, Records_Processed, Process_Dttm \
-from ETL_Indicator_Proj_Audit \
-where table_type = 'Core' \
-QUALIFY 1=ROW_NUMBER() OVER (PARTITION BY Process_Name ORDER BY Process_Dttm DESC);"
+query = (
+    "select\n"
+    "  Process_Name,\n"
+    "  Table_Type,\n"
+    "  TableName,\n"
+    "  Records_Processed,\n"
+    "  Process_Dttm\n"
+    "from ETL_Indicator_Proj_Audit\n"
+    "where table_type = 'Core'\n"
+    "QUALIFY 1 = ROW_NUMBER() OVER (\n"
+    "    PARTITION BY Process_Name\n"
+    "    ORDER BY Process_Dttm DESC\n"
+    ");"
+)
 
 
 #Fetch the data from Teradata using Pandas Dataframe
