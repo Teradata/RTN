@@ -1,12 +1,7 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 # In[ ]
 
-
 #!/usr/bin/env python
 # coding: utf-8
-
 
 #############################################################
 # Libraries
@@ -35,6 +30,7 @@ eng = sqla.create_engine(
 )
 con = create_context(tdsqlengine=eng)
 
+# %%
 #############################################################
 # Stage to Core Loads
 #############################################################
@@ -128,7 +124,7 @@ finally:
     )
     print_complete("ETL_POST_LOAD_CORE")
 
-
+# %%
 #############################################################
 # Printing the Load Summary Stats
 #############################################################
@@ -150,7 +146,7 @@ query = (
     ");"
 )
 
-
+# %%
 #Fetch the data from Teradata using Pandas Dataframe
 pda = pd.read_sql(query,con)
 print(pda)
