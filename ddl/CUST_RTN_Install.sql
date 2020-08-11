@@ -1,5 +1,34 @@
 DATABASE ???;
 
+CREATE MULTISET TABLE ???.DIM_DASH_VIZ_METRIC_XREF ,FALLBACK ,
+    NO BEFORE JOURNAL,
+    NO AFTER JOURNAL,
+    CHECKSUM = DEFAULT,
+    DEFAULT MERGEBLOCKRATIO,
+    MAP = TD_MAP1
+    (
+    CORP_ID SMALLINT NOT NULL,
+    CORP_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    CORP_FUNCTION VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    DASHBOARD_VERSION VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    SEMANTIC_VIEW_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    GEO_GRANULARITY VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    DATE_GRANULARITY VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    METRIC_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    METRIC_DISPLAY_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    METRIC_DISPLAY_SHORT_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    METRIC_UOM VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    DASH_VIZ_DISPLAY_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    METRIC_VAL_IND_SEL VARCHAR(1) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    DOMAIN_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    SUBDOMAIN_1_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    SUBDOMAIN_2_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    SUBDOMAIN_3_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC,
+    DATA_SOURCE_NAME VARCHAR(255) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL)
+    PRIMARY INDEX ( CORP_ID ,CORP_FUNCTION ,METRIC_NAME ,DOMAIN_NAME ,
+    DATA_SOURCE_NAME );
+	
+	
 CREATE SET TABLE ???.DIM_GEO_LOCATION_T ,FALLBACK ,
      NO BEFORE JOURNAL,
      NO AFTER JOURNAL,
@@ -574,7 +603,7 @@ CREATE MULTISET TABLE ???.STG_Consumer_Sentiment_Index ,FALLBACK ,
      (
       "Month" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
       "Year" VARCHAR(10) CHARACTER SET UNICODE NOT CASESPECIFIC,
-      Customer_Sentiment_Index FLOAT,
+      Consumer_Sentiment_Index FLOAT,
       current_dttm TIMESTAMP(6))
 NO PRIMARY INDEX ;
 
@@ -1161,6 +1190,15 @@ CREATE MULTISET TABLE ???.Transaltion_Table ,FALLBACK ,
 PRIMARY INDEX ( CLNSNG_CD ,CLNSNG_SRC );
 
 
+REPLACE VIEW ???.DIM_DASH_VIZ_METRIC_XREF_V AS
+    LOCKING ROW FOR ACCESS
+    SELECT *
+        FROM ???.DIM_DASH_VIZ_METRIC_XREF
+        WHERE CORP_ID = 1
+            AND  CORP_FUNCTION = 'Generic'
+            AND  DASHBOARD_VERSION = '1';
+			
+
 REPLACE VIEW ???.DIM_CALENDAR_V  AS
     LOCKING ROW FOR ACCESS
     SELECT 
@@ -1236,10 +1274,13 @@ REPLACE VIEW ???.DIM_GEO_LOCATION_V AS
 
 REPLACE VIEW  ???.DIM_PEOPLE_LOCATION_V AS
     LOCKING ROW FOR ACCESS
-    SELECT PL.*, LKP.STATE_NAME, LKP.COUNTY_NAME, LKP.MSA_NAME
-    FROM ???.DIM_People_location PL
-    LEFT JOIN ???.DIM_ZIPCODE_COUNTY_MSA_LKUP LKP ON 
-         PL.ZIPCODE = LKP.ZIPCODE;
+    SELECT PL.*,
+        LKP.STATE_NAME,
+        LKP.COUNTY_NAME,
+        LKP.MSA_NAME
+        FROM ???.DIM_People_location PL
+        LEFT JOIN ???.DIM_ZIPCODE_COUNTY_MSA_LKUP LKP ON 
+        PL.ZIPCODE = LKP.ZIPCODE;
 
 
 REPLACE VIEW  ???.DIM_SITE_ADDRESSES_V AS
@@ -1748,8 +1789,8 @@ QUALIFY RANK() OVER (PARTITION BY COUNTY, STATE_NAME, CURR_PREV_FLAG ORDER BY DA
 
 
 REPLACE VIEW ???.F_IND_DASH_MACROECONOMICS_GEO_MONTHLY_V AS
-LOCKING ROW FOR ACCESS
-   SELECT 
+    LOCKING ROW FOR ACCESS
+    SELECT 
         DT.SNAPSHOT_DATE,
         DT.SNAPSHOT_MONTH,
         FT.DATE_KEY,
@@ -1762,114 +1803,114 @@ LOCKING ROW FOR ACCESS
         FT.COUNTRY_NAME,
         FT.POPULATION,
         FT.METRIC_NAME,
+        FT.METRIC_DISPLAY_SHORT_NAME,
+		FT.METRIC_UOM,
+		FT.DASH_VIZ_DISPLAY_NAME,
         FT.METRIC_VALUE
-   FROM
-    (
+    FROM
+       (
         SELECT 
-           DATE_KEY,
-           DATE_KEY - EXTRACT(DAY FROM DATE_KEY)+1 AS MONTH_KEY,
-           0 AS WEEK_NUM,
-           UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
-           G.COUNTY,
-           G.STATE_CODE,
-           G.STATE_NAME,
-           G.COUNTRY_NAME,
-           G.POPULATION,
-           CASE WHEN F.DATA_SOURCE_NAME = 'Consumer Sentiment Index'
-                THEN 'Consumer Confidence Index'
-                WHEN F.DATA_SOURCE_NAME = 'BLS'
-                THEN F.METRIC_NAME
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                     TRIM(UPPER(F.DOMAIN_NAME)) = 'GOODS' AND
-                     TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'NONDURABLE GOODS' AND
-                     TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'CLOTHING AND FOOTWEAR' AND
-                     TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-                THEN 'Household - Clothing & Footwear'
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                     TRIM(UPPER(F.DOMAIN_NAME)) = 'SERVICES' AND
-                     TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)' AND
-                     TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'FOOD SERVICES AND ACCOMMODATIONS' AND
-                     TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-                THEN 'Household - Food Services & Accommodation'
-           END AS METRIC_NAME,    
-           CASE WHEN F.DATA_SOURCE_NAME = 'Consumer Sentiment Index'
-                THEN F.METRIC_INDEX
-                WHEN F.DATA_SOURCE_NAME = 'BLS'
-                THEN F.METRIC_VALUE
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                     TRIM(UPPER(F.DOMAIN_NAME)) = 'GOODS' AND
-                     TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'NONDURABLE GOODS' AND
-                     TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'CLOTHING AND FOOTWEAR' AND
-                     TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-                     THEN F.METRIC_VALUE
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                     TRIM(UPPER(F.DOMAIN_NAME)) = 'SERVICES' AND
-                     TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)' AND
-                     TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'FOOD SERVICES AND ACCOMMODATIONS' AND
-                     TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-                THEN F.METRIC_VALUE
-           END AS METRIC_VALUE,
-           DATA_SOURCE_NAME
+            DATE_KEY,
+            DATE_KEY - EXTRACT(DAY FROM DATE_KEY)+1 AS MONTH_KEY,
+            0 AS WEEK_NUM,
+            UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
+            G.COUNTY,
+            G.STATE_CODE,
+            G.STATE_NAME,
+            G.COUNTRY_NAME,
+            G.POPULATION,
+            MT.METRIC_DISPLAY_NAME AS METRIC_NAME,
+            MT.METRIC_DISPLAY_SHORT_NAME,
+		    MT.METRIC_UOM,
+            MT.DASH_VIZ_DISPLAY_NAME,
+            CASE WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'I' 
+			     THEN F.METRIC_INDEX
+                 WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'V' 
+			     THEN F.METRIC_VALUE
+            END AS METRIC_VALUE,
+            F.DATA_SOURCE_NAME
         FROM ???.FACT_INDICATOR_DASHBOARD_V F
-        JOIN ???.DIM_GEO_LOCATION_V G ON 
-             F.GEO_KEY = G.UID
-		LEFT JOIN (
-		        SELECT   MAX(DATE_KEY) MAX_DT
-                   FROM ???.FACT_INDICATOR_DASHBOARD_V F
-                   WHERE F.DATA_SOURCE_NAME IN ('Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U',
-                                                'Consumer Sentiment Index',
-                                                'BLS') 
-		    ) MAXDT ON 1=1
-        WHERE F.DATE_KEY BETWEEN CAST(CONCAT(TRIM(EXTRACT(YEAR FROM MAX_DT)-1),'-01-01') AS DATE FORMAT 'YYYY-MM-DD') AND MAX_DT AND  
-              CASE WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                        TRIM(UPPER(F.DOMAIN_NAME))      IN ('GOODS','SERVICES') AND
-                        TRIM(UPPER(F.SUBDOMAIN_1_NAME)) IN ('NONDURABLE GOODS','HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)') AND
-                        TRIM(UPPER(F.SUBDOMAIN_2_NAME)) IN ('CLOTHING AND FOOTWEAR','FOOD SERVICES AND ACCOMMODATIONS') AND
-                        TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'   
-                   THEN 1
-                   WHEN F.DATA_SOURCE_NAME IN ('Consumer Sentiment Index','BLS')
-                   THEN 1
-                   ELSE 0
-              END = 1                        				
-			 
+             JOIN ???.DIM_DASH_VIZ_METRIC_XREF_V MT  ON 
+                  MT.SEMANTIC_VIEW_NAME             = 'F_IND_DASH_MACROECONOMICS_VIZ_V' AND
+                  F.METRIC_NAME                     = MT.METRIC_NAME AND 
+                  F.DATA_SOURCE_NAME                = MT.DATA_SOURCE_NAME  AND
+                  DECODE(F.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_1_NAME,'?')) = DECODE(MT.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_1_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_2_NAME,'?')) = DECODE(MT.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_2_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_3_NAME,'?')) = DECODE(MT.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_3_NAME,'?'))
+            JOIN ???.DIM_GEO_LOCATION_V G ON 
+                  F.GEO_KEY = G.UID
+            LEFT JOIN 
+			(
+             SELECT    
+			 MAX(DATE_KEY) MAX_DT
+             FROM ???.FACT_INDICATOR_DASHBOARD_V F
+             WHERE DATA_SOURCE_NAME IN (SELECT DATA_SOURCE_NAME     
+			                            FROM ???.DIM_DASH_VIZ_METRIC_XREF_V 
+                                        WHERE SEMANTIC_VIEW_NAME = 'F_IND_DASH_MACROECONOMICS_VIZ_V'
+						            )
+            ) MAXDT ON 1=1
+            WHERE F.DATE_KEY BETWEEN CAST(CONCAT(TRIM(EXTRACT(YEAR FROM MAX_DT)-1),'-01-01') AS DATE FORMAT 'YYYY-MM-DD') AND MAX_DT AND  
+			      UPPER(F.DATE_GRANULARITY) = 'MONTHLY'
+                      				
         UNION ALL
-		
-        SELECT DATE_KEY,
-               DATE_KEY - EXTRACT(DAY FROM DATE_KEY)+1 AS MONTH_KEY,
-               DENSE_RANK() OVER (PARTITION BY EXTRACT(YEAR FROM DATE_KEY) ORDER BY DATE_KEY ASC) AS WEEK_NUM,
-               UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
-               G.COUNTY,
-               G.STATE_CODE,
-               G.STATE_NAME,
-               G.COUNTRY_NAME,
-               G.POPULATION,
-               CONCAT(F.SUBDOMAIN_1_NAME,' - ',F.METRIC_NAME) AS METRIC_NAME,
-               METRIC_VALUE,
-               DATA_SOURCE_NAME
+        
+		SELECT 
+		    DATE_KEY,
+            DATE_KEY - EXTRACT(DAY FROM DATE_KEY)+1 AS MONTH_KEY,
+            DENSE_RANK() OVER (PARTITION BY EXTRACT(YEAR FROM DATE_KEY) ORDER BY DATE_KEY ASC) AS WEEK_NUM,
+            UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
+            G.COUNTY,
+            G.STATE_CODE,
+            G.STATE_NAME,
+            G.COUNTRY_NAME,
+            G.POPULATION,
+            MT.METRIC_DISPLAY_NAME AS METRIC_NAME,
+            MT.METRIC_DISPLAY_SHORT_NAME,
+		    MT.METRIC_UOM,
+            MT.DASH_VIZ_DISPLAY_NAME,
+            CASE WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'I' 
+			     THEN F.METRIC_INDEX
+                 WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'V' 
+			     THEN F.METRIC_VALUE
+            END AS METRIC_VALUE,
+            F.DATA_SOURCE_NAME    
         FROM ???.FACT_INDICATOR_DASHBOARD_V F
-             JOIN ???.DIM_GEO_LOCATION_V G ON 
-             F.GEO_KEY = G.UID
-	         LEFT JOIN (
-	                    SELECT   MAX(DATE_KEY) MAX_DT
-                        FROM ???.FACT_INDICATOR_DASHBOARD_V F
-                        WHERE F.DATA_SOURCE_NAME IN ('US-EIA') 
-	                   ) MAXDT ON 1=1
-        WHERE F.DATE_KEY BETWEEN CAST(CONCAT(TRIM(EXTRACT(YEAR FROM MAX_DT)-1),'-01-01') AS DATE FORMAT 'YYYY-MM-DD') AND MAX_DT AND  
-	          F.DATA_SOURCE_NAME = 'US-EIA' 
-        --QUALIFY DENSE_RANK() OVER (PARTITION BY METRIC_NAME,MONTH_KEY ORDER BY DATE_KEY DESC) <= 4	                				
-    ) FT
-    JOIN (
-          SELECT   
-		       MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY)) AS SNAPSHOT_DATE,
-			   CONCAT('M',TRIM(MONTH(MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY)))),'-',TRIM(YEAR(MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY))))) AS SNAPSHOT_MONTH
-          FROM ???.FACT_INDICATOR_DASHBOARD_V F
-          WHERE F.DATA_SOURCE_NAME IN ('Consumer Sentiment Index',
-		                               'BLS',
-		                               'US-EIA',
-									   'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U')
+             JOIN ???.DIM_DASH_VIZ_METRIC_XREF_V MT  ON 
+                  MT.SEMANTIC_VIEW_NAME             = 'F_IND_DASH_MACROECONOMICS_VIZ_V' AND
+                  F.METRIC_NAME                     = MT.METRIC_NAME AND 
+                  F.DATA_SOURCE_NAME                = MT.DATA_SOURCE_NAME  AND
+                  DECODE(F.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_1_NAME,'?')) = DECODE(MT.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_1_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_2_NAME,'?')) = DECODE(MT.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_2_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_3_NAME,'?')) = DECODE(MT.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_3_NAME,'?'))
+            JOIN ???.DIM_GEO_LOCATION_V G ON 
+                  F.GEO_KEY = G.UID
+            LEFT JOIN 
+			(
+             SELECT    
+			 MAX(DATE_KEY) MAX_DT
+             FROM ???.FACT_INDICATOR_DASHBOARD_V F
+             WHERE DATA_SOURCE_NAME IN (SELECT DATA_SOURCE_NAME     
+			                            FROM ???.DIM_DASH_VIZ_METRIC_XREF_V 
+                                        WHERE SEMANTIC_VIEW_NAME = 'F_IND_DASH_MACROECONOMICS_VIZ_V'
+						            )
+            ) MAXDT ON 1=1
+            WHERE F.DATE_KEY BETWEEN CAST(CONCAT(TRIM(EXTRACT(YEAR FROM MAX_DT)-1),'-01-01') AS DATE FORMAT 'YYYY-MM-DD') AND MAX_DT AND  
+			      UPPER(F.DATE_GRANULARITY) = 'WEEKLY'
+                				
+        ) FT
+		JOIN
+	    (
+         SELECT   
+            MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY)) AS SNAPSHOT_DATE,
+            CONCAT('M',TRIM(MONTH(MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY)))),'-',TRIM(YEAR(MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY))))) AS SNAPSHOT_MONTH
+         FROM ???.FACT_INDICATOR_DASHBOARD_V F                    
+         WHERE DATA_SOURCE_NAME IN (SELECT DATA_SOURCE_NAME     
+			                        FROM ???.DIM_DASH_VIZ_METRIC_XREF_V 
+                                    WHERE SEMANTIC_VIEW_NAME = 'F_IND_DASH_MACROECONOMICS_VIZ_V'
+								   )
         ) DT ON 
         1=1;
-
+		
 
 REPLACE VIEW ???.F_IND_DASH_MACROECONOMICS_VIZ_V AS
     LOCKING ROW FOR ACCESS
@@ -1885,110 +1926,83 @@ REPLACE VIEW ???.F_IND_DASH_MACROECONOMICS_VIZ_V AS
         FT.COUNTRY_NAME,
         FT.POPULATION,
         FT.METRIC_NAME,
+        FT.METRIC_DISPLAY_SHORT_NAME,
+		FT.METRIC_UOM,
+		FT.DASH_VIZ_DISPLAY_NAME,
         FT.METRIC_VALUE
-        FROM
-        (
+    FROM
+       (
         SELECT 
-            DATE_KEY,
-            
-            CASE
-                WHEN RANK() OVER (PARTITION BY METRIC_NAME
-            ORDER BY DATE_KEY DESC) = 1
-            THEN 'CURR-CY'
-                WHEN RANK() OVER (PARTITION BY METRIC_NAME
-            ORDER BY DATE_KEY DESC) = 2
-            THEN 'PREV-CY'
-                WHEN RANK() OVER (PARTITION BY METRIC_NAME
-            ORDER BY DATE_KEY DESC) = 13
-            THEN 'CURR-LY'
+            T.DATE_KEY,
+            CASE WHEN RANK() OVER (PARTITION BY T.METRIC_DISPLAY_NAME ORDER BY DATE_KEY DESC) = 1
+                 THEN 'CURR-CY'
+                 WHEN RANK() OVER (PARTITION BY T.METRIC_DISPLAY_NAME ORDER BY DATE_KEY DESC) = 2
+                 THEN 'PREV-CY'
+                 WHEN RANK() OVER (PARTITION BY T.METRIC_DISPLAY_NAME ORDER BY DATE_KEY DESC) = 13
+                 THEN 'CURR-LY'
             END CURR_PREV_FLAG,
-                GEO_GRANULARITY,
-                COUNTY,
-                STATE_CODE,
-                STATE_NAME,
-                COUNTRY_NAME,
-                POPULATION,
-                METRIC_NAME,
-                METRIC_VALUE,
-                DATA_SOURCE_NAME
-            FROM
-            (
-            SELECT DATE_KEY,
+            T.GEO_GRANULARITY,
+            T.COUNTY,
+            T.STATE_CODE,
+            T.STATE_NAME,
+            T.COUNTRY_NAME,
+            T.POPULATION,
+            T.METRIC_DISPLAY_NAME AS METRIC_NAME,
+            T.METRIC_DISPLAY_SHORT_NAME,
+			T.METRIC_UOM,
+			T.DASH_VIZ_DISPLAY_NAME,
+            T.METRIC_VALUE,
+            T.DATA_SOURCE_NAME
+        FROM
+           (
+            SELECT 
+			    DATE_KEY,
                 UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
                 G.COUNTY,
                 G.STATE_CODE,
                 G.STATE_NAME,
                 G.COUNTRY_NAME,
                 G.POPULATION,
-                
-                CASE
-                    WHEN F.DATA_SOURCE_NAME = 'Consumer Sentiment Index'
-                THEN 'Consumer Confidence Index'
-                    WHEN F.DATA_SOURCE_NAME = 'BLS'
-                THEN F.METRIC_NAME
-                    WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                TRIM(UPPER(F.DOMAIN_NAME)) = 'GOODS' AND
-                TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'NONDURABLE GOODS' AND
-                TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'CLOTHING AND FOOTWEAR' AND
-                TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-                THEN 'Household - Clothing & Footwear'
-                    WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                TRIM(UPPER(F.DOMAIN_NAME)) = 'SERVICES' AND
-                TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)' AND
-                TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'FOOD SERVICES AND ACCOMMODATIONS' AND
-                TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-                THEN 'Household - Food Services & Accommodation'
-                END AS METRIC_NAME,
-                    
-                CASE
-                    WHEN F.DATA_SOURCE_NAME = 'Consumer Sentiment Index'
-                THEN F.METRIC_INDEX
-                    WHEN F.DATA_SOURCE_NAME = 'BLS'
-                THEN F.METRIC_VALUE
-                    WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                TRIM(UPPER(F.DOMAIN_NAME)) = 'GOODS' AND
-                TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'NONDURABLE GOODS' AND
-                TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'CLOTHING AND FOOTWEAR' AND
-                TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-                THEN F.METRIC_VALUE
-                    WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                TRIM(UPPER(F.DOMAIN_NAME)) = 'SERVICES' AND
-                TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)' AND
-                TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'FOOD SERVICES AND ACCOMMODATIONS' AND
-                TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-                THEN F.METRIC_VALUE
+                MT.METRIC_DISPLAY_NAME,
+                MT.METRIC_DISPLAY_SHORT_NAME,
+				MT.METRIC_UOM,
+                MT.DASH_VIZ_DISPLAY_NAME,                
+                CASE WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'I' 
+				     THEN F.METRIC_INDEX
+                     WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'V' 
+					 THEN F.METRIC_VALUE
                 END AS METRIC_VALUE,
-                    DATA_SOURCE_NAME
-                FROM ???.FACT_INDICATOR_DASHBOARD_V F
+                F.DATA_SOURCE_NAME
+            FROM ???.FACT_INDICATOR_DASHBOARD_V F 
+                 JOIN ???.DIM_DASH_VIZ_METRIC_XREF_V MT  ON 
+                      MT.SEMANTIC_VIEW_NAME             = 'F_IND_DASH_MACROECONOMICS_VIZ_V' AND
+                      F.METRIC_NAME                     = MT.METRIC_NAME AND 
+                      F.DATA_SOURCE_NAME                = MT.DATA_SOURCE_NAME  AND
+                      DECODE(F.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_1_NAME,'?')) = DECODE(MT.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_1_NAME,'?')) AND
+                      DECODE(F.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_2_NAME,'?')) = DECODE(MT.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_2_NAME,'?')) AND
+                      DECODE(F.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_3_NAME,'?')) = DECODE(MT.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_3_NAME,'?'))
                 JOIN ???.DIM_GEO_LOCATION_V G ON 
-                F.GEO_KEY = G.UID
-                LEFT JOIN (
-                SELECT   MAX(DATE_KEY) MAX_DT
-                    FROM ???.FACT_INDICATOR_DASHBOARD_V F
-                    WHERE F.DATA_SOURCE_NAME IN ('Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U',
-                    'Consumer Sentiment Index',
-                    'BLS') 
+                     F.GEO_KEY = G.UID
+                LEFT JOIN 
+			    (
+                 SELECT    
+				    MAX(DATE_KEY) MAX_DT
+                 FROM ???.FACT_INDICATOR_DASHBOARD_V F
+                 WHERE DATA_SOURCE_NAME IN (SELECT DATA_SOURCE_NAME     
+				                            FROM ???.DIM_DASH_VIZ_METRIC_XREF_V 
+                                            WHERE SEMANTIC_VIEW_NAME = 'F_IND_DASH_MACROECONOMICS_VIZ_V'
+										   )
                 ) MAXDT ON 1=1
-                WHERE F.DATE_KEY BETWEEN ADD_MONTHS(MAX_DT,-20) AND MAX_DT
-                    AND  
-                CASE
-                    WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-                TRIM(UPPER(F.DOMAIN_NAME))      IN ('GOODS','SERVICES') AND
-                TRIM(UPPER(F.SUBDOMAIN_1_NAME)) IN ('NONDURABLE GOODS','HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)') AND
-                TRIM(UPPER(F.SUBDOMAIN_2_NAME)) IN ('CLOTHING AND FOOTWEAR','FOOD SERVICES AND ACCOMMODATIONS') AND
-                TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'   
-                THEN 1
-                    WHEN F.DATA_SOURCE_NAME IN ('Consumer Sentiment Index','BLS')
-                THEN 1
-                ELSE 0
-                END = 1
-                 --GROUP BY 1,2,3,4,5,6,7,8,9,10
-                ) T
-            QUALIFY RANK() OVER (PARTITION BY METRIC_NAME
-            ORDER BY DATE_KEY DESC) IN (1,2,13)
-                                                        				
+            WHERE F.DATE_KEY BETWEEN ADD_MONTHS(MAX_DT,-20) AND MAX_DT AND  
+			      UPPER(F.DATE_GRANULARITY) = 'MONTHLY'
+
+           ) T
+        QUALIFY RANK() OVER (PARTITION BY T.METRIC_DISPLAY_NAME ORDER BY T.DATE_KEY DESC) IN (1,2,13)
+                                                                                                        				
         UNION ALL
-        SELECT DATE_KEY,
+		
+        SELECT 
+            DATE_KEY,
             'JAN-CY' AS CURR_PREV_FLAG,
             UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
             G.COUNTY,
@@ -1996,181 +2010,188 @@ REPLACE VIEW ???.F_IND_DASH_MACROECONOMICS_VIZ_V AS
             G.STATE_NAME,
             G.COUNTRY_NAME,
             G.POPULATION,
-            
-            CASE
-                WHEN F.DATA_SOURCE_NAME = 'Consumer Sentiment Index'
-            THEN 'Consumer Confidence Index'
-                WHEN F.DATA_SOURCE_NAME = 'BLS'
-            THEN F.METRIC_NAME
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-            TRIM(UPPER(F.DOMAIN_NAME)) = 'GOODS' AND
-            TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'NONDURABLE GOODS' AND
-            TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'CLOTHING AND FOOTWEAR' AND
-            TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-            THEN 'Household - Clothing & Footwear'
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-            TRIM(UPPER(F.DOMAIN_NAME)) = 'SERVICES' AND
-            TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)' AND
-            TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'FOOD SERVICES AND ACCOMMODATIONS' AND
-            TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-            THEN 'Household - Food Services & Accommodation'
-            END AS METRIC_NAME,
-                
-            CASE
-                WHEN F.DATA_SOURCE_NAME = 'Consumer Sentiment Index'
-            THEN F.METRIC_INDEX
-                WHEN F.DATA_SOURCE_NAME = 'BLS'
-            THEN F.METRIC_VALUE
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-            TRIM(UPPER(F.DOMAIN_NAME)) = 'GOODS' AND
-            TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'NONDURABLE GOODS' AND
-            TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'CLOTHING AND FOOTWEAR' AND
-            TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-            THEN F.METRIC_VALUE
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-            TRIM(UPPER(F.DOMAIN_NAME)) = 'SERVICES' AND
-            TRIM(UPPER(F.SUBDOMAIN_1_NAME)) = 'HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)' AND
-            TRIM(UPPER(F.SUBDOMAIN_2_NAME)) = 'FOOD SERVICES AND ACCOMMODATIONS' AND
-            TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'
-            THEN F.METRIC_VALUE
+            MT.METRIC_DISPLAY_NAME AS METRIC_NAME,
+            MT.METRIC_DISPLAY_SHORT_NAME,
+			MT.METRIC_UOM,
+            MT.DASH_VIZ_DISPLAY_NAME,  
+            CASE WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'I' 
+			     THEN F.METRIC_INDEX
+                 WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'V' 
+			     THEN F.METRIC_VALUE
             END AS METRIC_VALUE,
+            F.DATA_SOURCE_NAME
+        FROM ???.FACT_INDICATOR_DASHBOARD_V F
+             JOIN ???.DIM_DASH_VIZ_METRIC_XREF_V MT  ON 
+                  MT.SEMANTIC_VIEW_NAME             = 'F_IND_DASH_MACROECONOMICS_VIZ_V' AND
+                  F.METRIC_NAME                     = MT.METRIC_NAME AND 
+                  F.DATA_SOURCE_NAME                = MT.DATA_SOURCE_NAME  AND
+                  DECODE(F.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_1_NAME,'?')) = DECODE(MT.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_1_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_2_NAME,'?')) = DECODE(MT.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_2_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_3_NAME,'?')) = DECODE(MT.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_3_NAME,'?'))
+             JOIN ???.DIM_GEO_LOCATION_V G ON 
+             F.GEO_KEY = G.UID
+             LEFT JOIN 
+			 (
+              SELECT    
+			  MAX(DATE_KEY) MAX_DT
+              FROM ???.FACT_INDICATOR_DASHBOARD_V F
+              WHERE DATA_SOURCE_NAME IN (SELECT DATA_SOURCE_NAME     
+			                             FROM ???.DIM_DASH_VIZ_METRIC_XREF_V 
+                                         WHERE SEMANTIC_VIEW_NAME = 'F_IND_DASH_MACROECONOMICS_VIZ_V'
+							   )
+             ) MAXDT ON 1=1
+            WHERE MONTH( F.DATE_KEY) = 1 AND  
+			      YEAR(F.DATE_KEY) = YEAR (MAX_DT) AND  
+				  UPPER(F.DATE_GRANULARITY) = 'MONTHLY'
+
+        UNION ALL
+        
+		SELECT 
+            T.DATE_KEY AS DATE_KEY,
+            CASE WHEN RANK() OVER (PARTITION BY T.METRIC_DISPLAY_NAME ORDER BY DATE_KEY DESC) = 1
+                 THEN 'CURR-CY'
+                 WHEN RANK() OVER (PARTITION BY T.METRIC_DISPLAY_NAME ORDER BY DATE_KEY DESC) = 2
+                 THEN 'PREV-CY'
+                 WHEN RANK() OVER (PARTITION BY T.METRIC_DISPLAY_NAME ORDER BY DATE_KEY DESC) = 13
+                 THEN 'CURR-LY'
+            END CURR_PREV_FLAG,
+            T.GEO_GRANULARITY,
+            T.COUNTY,
+            T.STATE_CODE,
+            T.STATE_NAME,
+            T.COUNTRY_NAME,
+            T.POPULATION,
+            T.METRIC_DISPLAY_NAME AS METRIC_NAME,
+            T.METRIC_DISPLAY_SHORT_NAME,
+			T.METRIC_UOM,
+			T.DASH_VIZ_DISPLAY_NAME,
+            T.METRIC_VALUE,
+            T.DATA_SOURCE_NAME
+        FROM
+           (
+            SELECT 
+			    DATE_KEY,
+                ADD_MONTHS(DATE_KEY - EXTRACT(DAY FROM DATE_KEY)+1,1)-1 AS MONTH_KEY,
+                UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
+                G.COUNTY,
+                G.STATE_CODE,
+                G.STATE_NAME,
+                G.COUNTRY_NAME,
+                G.POPULATION,
+                MT.METRIC_DISPLAY_NAME,
+                MT.METRIC_DISPLAY_SHORT_NAME,
+				MT.METRIC_UOM,
+                MT.DASH_VIZ_DISPLAY_NAME,                
+                CASE WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'I' 
+				     THEN F.METRIC_INDEX
+                     WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'V' 
+					 THEN F.METRIC_VALUE
+                END AS METRIC_VALUE,
                 F.DATA_SOURCE_NAME
             FROM ???.FACT_INDICATOR_DASHBOARD_V F
-            JOIN ???.DIM_GEO_LOCATION_V G ON 
-            F.GEO_KEY = G.UID
-            LEFT JOIN (
-            SELECT   MAX(DATE_KEY) MAX_DT
-                FROM ???.FACT_INDICATOR_DASHBOARD_V F
-                WHERE F.DATA_SOURCE_NAME IN ('Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U',
-                'Consumer Sentiment Index',
-                'BLS') 
-            ) MAXDT ON 1=1
-            WHERE MONTH( F.DATE_KEY) = 1
-                AND  YEAR(F.DATE_KEY) = YEAR (MAX_DT)
-                AND  
-            CASE
-                WHEN F.DATA_SOURCE_NAME = 'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U' AND
-            TRIM(UPPER(F.DOMAIN_NAME))      IN ('GOODS','SERVICES') AND
-            TRIM(UPPER(F.SUBDOMAIN_1_NAME)) IN ('NONDURABLE GOODS','HOUSEHOLD CONSUMPTION EXPENDITURES (FOR SERVICES)') AND
-            TRIM(UPPER(F.SUBDOMAIN_2_NAME)) IN ('CLOTHING AND FOOTWEAR','FOOD SERVICES AND ACCOMMODATIONS') AND
-            TRIM(UPPER(F.SUBDOMAIN_3_NAME)) = 'TOTAL'   
-            THEN 1
-                WHEN F.DATA_SOURCE_NAME IN ('Consumer Sentiment Index','BLS')
-            THEN 1
-            ELSE 0
-            END = 1
-             --GROUP BY 1,2,3,4,5,6,7,8,9,
-            UNION ALL
+             JOIN ???.DIM_DASH_VIZ_METRIC_XREF_V MT  ON 
+                  MT.SEMANTIC_VIEW_NAME             = 'F_IND_DASH_MACROECONOMICS_VIZ_V' AND
+                  F.METRIC_NAME                     = MT.METRIC_NAME AND 
+                  F.DATA_SOURCE_NAME                = MT.DATA_SOURCE_NAME  AND
+                  DECODE(F.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_1_NAME,'?')) = DECODE(MT.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_1_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_2_NAME,'?')) = DECODE(MT.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_2_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_3_NAME,'?')) = DECODE(MT.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_3_NAME,'?'))
+             JOIN ???.DIM_GEO_LOCATION_V G ON 
+             F.GEO_KEY = G.UID
+             LEFT JOIN 
+			 (
+              SELECT    
+			  MAX(DATE_KEY) MAX_DT
+              FROM ???.FACT_INDICATOR_DASHBOARD_V F
+              WHERE DATA_SOURCE_NAME IN (SELECT DATA_SOURCE_NAME     
+			                             FROM ???.DIM_DASH_VIZ_METRIC_XREF_V 
+                                         WHERE SEMANTIC_VIEW_NAME = 'F_IND_DASH_MACROECONOMICS_VIZ_V'
+							            )
+             ) MAXDT ON 1=1
+            WHERE F.DATE_KEY BETWEEN ADD_MONTHS(MAX_DT,-20) AND ADD_MONTHS(MAX_DT,0) AND      -- US-EIA had -20 to -1 and not 0
+			      UPPER(F.DATE_GRANULARITY) = 'WEEKLY'
+            QUALIFY RANK() OVER (PARTITION BY METRIC_DISPLAY_NAME,MONTH_KEY ORDER BY DATE_KEY DESC) = 1
+           ) T
+        QUALIFY RANK() OVER (PARTITION BY T.METRIC_DISPLAY_NAME ORDER BY DATE_KEY DESC) IN (1,2,13)
+                                                                                                        
+        UNION ALL
+		
         SELECT 
             T.DATE_KEY AS DATE_KEY,
-            
-            CASE
-                WHEN RANK() OVER (PARTITION BY METRIC_NAME
-            ORDER BY T.DATE_KEY DESC) = 1
-            THEN 'CURR-CY'
-                WHEN RANK() OVER (PARTITION BY METRIC_NAME
-            ORDER BY T.DATE_KEY DESC) = 2
-            THEN 'PREV-CY'
-                WHEN RANK() OVER (PARTITION BY METRIC_NAME
-            ORDER BY T.DATE_KEY DESC) = 13
-            THEN 'CURR-LY'
-            END CURR_PREV_FLAG,
-                GEO_GRANULARITY,
-                COUNTY,
-                STATE_CODE,
-                STATE_NAME,
-                COUNTRY_NAME,
-                POPULATION,
-                METRIC_NAME,
-                METRIC_VALUE,
-                DATA_SOURCE_NAME
-            FROM
-            (
-            SELECT DATE_KEY,
-                ADD_MONTHS(DATE_KEY - EXTRACT(DAY
-                FROM DATE_KEY)+1,1)-1 AS MONTH_KEY,
-                    UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
-                    G.COUNTY,
-                    G.STATE_CODE,
-                    G.STATE_NAME,
-                    G.COUNTRY_NAME,
-                    G.POPULATION,
-                    CONCAT(F.SUBDOMAIN_1_NAME,' - ',F.METRIC_NAME) AS METRIC_NAME,
-                    METRIC_VALUE,
-                    DATA_SOURCE_NAME
-                FROM ???.FACT_INDICATOR_DASHBOARD_V F
-                JOIN ???.DIM_GEO_LOCATION_V G ON 
-                F.GEO_KEY = G.UID
-                LEFT JOIN (
-                SELECT   MAX(DATE_KEY) MAX_DT
-                    FROM ???.FACT_INDICATOR_DASHBOARD_V F
-                    WHERE F.DATA_SOURCE_NAME IN ('US-EIA') 
-                ) MAXDT ON 1=1
-                WHERE F.DATE_KEY BETWEEN ADD_MONTHS(MAX_DT,-20) AND ADD_MONTHS(MAX_DT,0)
-                    AND  F.DATA_SOURCE_NAME = 'US-EIA' 
-                QUALIFY RANK() OVER (PARTITION BY METRIC_NAME,MONTH_KEY
-                ORDER BY DATE_KEY DESC) = 1
-            ) T
-            QUALIFY RANK() OVER (PARTITION BY METRIC_NAME
-            ORDER BY DATE_KEY DESC) IN (1,2,13)
-                                                        
-        UNION ALL
-        SELECT 
-            T2.DATE_KEY AS DATE_KEY,
-            CURR_PREV_FLAG,
-            GEO_GRANULARITY,
-            COUNTY,
-            STATE_CODE,
-            STATE_NAME,
-            COUNTRY_NAME,
-            POPULATION,
-            METRIC_NAME,
-            METRIC_VALUE,
-            DATA_SOURCE_NAME
-            FROM
-            (
-            SELECT DATE_KEY,
-                ADD_MONTHS(DATE_KEY - EXTRACT(DAY
-                FROM DATE_KEY)+1,1)-1 AS MONTH_KEY,
-                    'JAN-CY' AS CURR_PREV_FLAG,
-                    UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
-                    G.COUNTY,
-                    G.STATE_CODE,
-                    G.STATE_NAME,
-                    G.COUNTRY_NAME,
-                    G.POPULATION,
-                    CONCAT(F.SUBDOMAIN_1_NAME,' - ',F.METRIC_NAME) AS METRIC_NAME,
-                    METRIC_VALUE,
-                    DATA_SOURCE_NAME
-                FROM ???.FACT_INDICATOR_DASHBOARD_V F
-                JOIN ???.DIM_GEO_LOCATION_V G ON 
-                F.GEO_KEY = G.UID
-                LEFT JOIN (
-                SELECT   MAX(DATE_KEY) MAX_DT
-                    FROM ???.FACT_INDICATOR_DASHBOARD_V F
-                    WHERE F.DATA_SOURCE_NAME IN ('US-EIA') 
-                ) MAXDT ON 1=1
-                WHERE MONTH( F.DATE_KEY) = 1
-                    AND  YEAR(DATE_KEY) = YEAR(MAX_DT)
-                    AND  F.DATA_SOURCE_NAME = 'US-EIA' 
-                QUALIFY RANK() OVER (PARTITION BY METRIC_NAME,MONTH_KEY
-                ORDER BY DATE_KEY DESC) = 1
-            ) T2				
-                                                        				
-        ) FT
-        JOIN (
-        SELECT   
-            MAX(DATE_KEY - EXTRACT(DAY
-            FROM DATE_KEY)) AS SNAPSHOT_DATE,
-                CONCAT('M',TRIM(MONTH(MAX(DATE_KEY - EXTRACT(DAY
-            FROM DATE_KEY)))),'-',TRIM(YEAR(MAX(DATE_KEY - EXTRACT(DAY
-            FROM DATE_KEY))))) AS SNAPSHOT_MONTH
+            T.CURR_PREV_FLAG,
+            T.GEO_GRANULARITY,
+            T.COUNTY,
+            T.STATE_CODE,
+            T.STATE_NAME,
+            T.COUNTRY_NAME,
+            T.POPULATION,
+            T.METRIC_DISPLAY_NAME AS METRIC_NAME,
+            T.METRIC_DISPLAY_SHORT_NAME,
+			T.METRIC_UOM,
+			T.DASH_VIZ_DISPLAY_NAME,
+            T.METRIC_VALUE,
+            T.DATA_SOURCE_NAME
+        FROM
+           (
+            SELECT 
+			    DATE_KEY,
+                ADD_MONTHS(DATE_KEY - EXTRACT(DAY FROM DATE_KEY)+1,1)-1 AS MONTH_KEY,
+                'JAN-CY' AS CURR_PREV_FLAG,
+                UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
+                G.COUNTY,
+                G.STATE_CODE,
+                G.STATE_NAME,
+                G.COUNTRY_NAME,
+                G.POPULATION,
+                MT.METRIC_DISPLAY_NAME,
+                MT.METRIC_DISPLAY_SHORT_NAME,
+			    MT.METRIC_UOM,
+                MT.DASH_VIZ_DISPLAY_NAME,  
+                CASE WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'I' 
+			         THEN F.METRIC_INDEX
+                     WHEN UPPER(MT.METRIC_VAL_IND_SEL) = 'V' 
+			         THEN F.METRIC_VALUE
+                END AS METRIC_VALUE,
+                F.DATA_SOURCE_NAME
             FROM ???.FACT_INDICATOR_DASHBOARD_V F
-            WHERE F.DATA_SOURCE_NAME IN ('Consumer Sentiment Index',
-            'BLS','US-EIA',
-            'Bureau of Economic Analysis - NIPA Monthly Report T2.4.5U')
+             JOIN ???.DIM_DASH_VIZ_METRIC_XREF_V MT  ON 
+                  MT.SEMANTIC_VIEW_NAME             = 'F_IND_DASH_MACROECONOMICS_VIZ_V' AND
+                  F.METRIC_NAME                     = MT.METRIC_NAME AND 
+                  F.DATA_SOURCE_NAME                = MT.DATA_SOURCE_NAME  AND
+                  DECODE(F.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_1_NAME,'?')) = DECODE(MT.SUBDOMAIN_1_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_1_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_2_NAME,'?')) = DECODE(MT.SUBDOMAIN_2_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_2_NAME,'?')) AND
+                  DECODE(F.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(F.SUBDOMAIN_3_NAME,'?')) = DECODE(MT.SUBDOMAIN_3_NAME,'','?',' ','?',COALESCE(MT.SUBDOMAIN_3_NAME,'?'))
+             JOIN ???.DIM_GEO_LOCATION_V G ON 
+             F.GEO_KEY = G.UID
+             LEFT JOIN 
+			 (
+              SELECT    
+			  MAX(DATE_KEY) MAX_DT
+              FROM ???.FACT_INDICATOR_DASHBOARD_V F
+              WHERE DATA_SOURCE_NAME IN (SELECT DATA_SOURCE_NAME     
+			                             FROM ???.DIM_DASH_VIZ_METRIC_XREF_V 
+                                         WHERE SEMANTIC_VIEW_NAME = 'F_IND_DASH_MACROECONOMICS_VIZ_V'
+							            )
+             ) MAXDT ON 1=1
+            WHERE MONTH(F.DATE_KEY) = 1 AND  
+			      YEAR(DATE_KEY) = YEAR(MAX_DT) AND  
+				  UPPER(F.DATE_GRANULARITY) = 'WEEKLY'
+            QUALIFY RANK() OVER (PARTITION BY MT.METRIC_DISPLAY_NAME, MONTH_KEY ORDER BY DATE_KEY DESC) = 1
+           ) T				
+                                                                                                        				
+        ) FT
+        JOIN 
+	    (
+         SELECT   
+            MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY)) AS SNAPSHOT_DATE,
+            CONCAT('M',TRIM(MONTH(MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY)))),'-',TRIM(YEAR(MAX(DATE_KEY - EXTRACT(DAY FROM DATE_KEY))))) AS SNAPSHOT_MONTH
+         FROM ???.FACT_INDICATOR_DASHBOARD_V F                    
+         WHERE DATA_SOURCE_NAME IN (SELECT DATA_SOURCE_NAME     
+			                        FROM ???.DIM_DASH_VIZ_METRIC_XREF_V 
+                                    WHERE SEMANTIC_VIEW_NAME = 'F_IND_DASH_MACROECONOMICS_VIZ_V'
+								   )
         ) DT ON 
-        1=1;
+       1=1;
 
 
 REPLACE VIEW ???.F_IND_DASH_NYT_COVID19_GEO_7MAVG_WEEKLY_SNPSHT_V AS
@@ -2404,7 +2425,8 @@ REPLACE VIEW ???.F_IND_DASH_MOBILITY_GEO_WEEKLY_V AS
                     WHEN RNK =2 THEN 'PREV'
                     WHEN RNK =3 THEN 'PREV-1'
                     WHEN RNK =4 THEN 'PREV-2'
-                ELSE 'PREV-3'
+                    WHEN RNK =4 THEN 'PREV-3'
+                ELSE 'PREV-4'
                 END CURR_PREV_FLAG,
                     RANK() OVER (
                 ORDER BY WEEK_END_DATE DESC) RNK,
@@ -2417,7 +2439,7 @@ REPLACE VIEW ???.F_IND_DASH_MOBILITY_GEO_WEEKLY_V AS
                     F.GEO_KEY = G.UID
                     WHERE F.DATA_SOURCE_NAME = 'Google Mobility Report'
                 ) MAXDT ON 1=1
-                WHERE CAL_DATE_KEY IN (MAX_DT-7,MAX_DT-14,MAX_DT-21,MAX_DT-28, MAX_DT-35)
+                WHERE CAL_DATE_KEY IN (MAX_DT,MAX_DT-7,MAX_DT-14,MAX_DT-21,MAX_DT-28, MAX_DT-35)
             ) DT ON
             F.DATE_KEY BETWEEN DT.FIL_START_DATE_KEY AND DT.FIL_END_DATE_KEY
             WHERE F.DATA_SOURCE_NAME = 'Google Mobility Report'
@@ -2425,17 +2447,21 @@ REPLACE VIEW ???.F_IND_DASH_MOBILITY_GEO_WEEKLY_V AS
             CASE
                 WHEN F.DATE_KEY BETWEEN DT.WEEK_START_DATE AND DT.WEEK_END_DATE
             THEN DT.CURR_PREV_FLAG
-            END IN ('CURR','PREV','PREV-1','PREV-2')
+            END IN ('CURR','PREV','PREV-1','PREV-2','PREV-3')
         ) T;
 
 
 REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
-                                                        
+-- Date           	Ver#		Modified By(Name)       	Version Comments                   
+-----------   	-------     -------------------------	----------------------------                       
+--08/05/2020       2.0         Teradata DW              	Changed avg(mobility_composite) to a max()                                                                     
     LOCKING ROW FOR ACCESS --    
-                    --     --    SELECT *  FROM ???.f_ind_dash_timeline_to_safety;
+        -- prev query is used to compare the previouly loaded projections against the latest projections
+        -- this will show if the modeling is indicating things are getting better or worst.
+        -- The query should be indentical to the bottom query excpet it uses the view ???.F_IND_DASH_Covid_Projections_prev_V
     WITH prev AS (
     SELECT   
-       geo_key,
+        geo_key,
         STATE_NAME,
         STATE_CODE,
         Population,
@@ -2474,39 +2500,44 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
                 
                 FROM ???.F_IND_DASH_Covid_Projections_prev_V a
                 JOIN ???.DIM_GEO_LOCATION_V g ON g.uid = a.geo_key) states  
-                                                                                         
+                                                                                                                                         
             JOIN (
             SELECT DISTINCT
                 geo_key,
                 state_name,
                 safe_flag,
                 1 bucket,
-                MIN(Est_Date_start)  OVER(PARTITION BY geo_key)  Est_Date_start,
-                AVG(mobility_composite) OVER(PARTITION BY geo_key)  mobility_composite
+                MIN(Est_Date_start)  OVER(PARTITION BY geo_key) + 14 Est_Date_start,
+                max(mobility_composite) OVER(PARTITION BY geo_key)  mobility_composite
                 FROM (
                 SELECT geo_key,
                     state_name,
                     infections_per100k,
                     mobility_composite,
                     safe_day,
+                    Last_confirmed_infections,
                     
                     CASE
                         WHEN  
                     SUM(safe_day) OVER (PARTITION BY geo_key
                     ORDER BY modeled_date 
-                    ROWS   13 PRECEDING  ) >= 14 THEN 1 ELSE 0
+                    ROWS  BETWEEN  CURRENT ROW AND 13 FOLLOWING  ) >= 14 THEN 'Y' ELSE 'N'
                     END safe_flag,
                         
                     CASE
-                        WHEN safe_flag = 1 THEN modeled_date ELSE NULL
+                        WHEN safe_flag = 'Y' THEN modeled_date ELSE NULL
                     END Est_Date_start
                     FROM (
                     SELECT   geo_key,
                         state_name,
                         f.mobility_composite,
                         f.modeled_date,
-                        CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
-                        
+                        MAX(
+                        CASE
+                            WHEN f.confirmed_infections IS NOT NULL THEN f.modeled_date
+                        END ) OVER(PARTITION BY geo_key) Last_confirmed_infections,
+                            CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
+                            
                         CASE
                             WHEN infections_per100k <4  THEN 1 ELSE 0
                         END safe_day,
@@ -2522,9 +2553,9 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
                         F.GEO_KEY = G.UID
                          --where f.geo_key = 84000001
                         )  a   ) final
-                WHERE safe_flag = 1
-                    AND  COALESCE(est_date_start,CURRENT_DATE - 7) > CURRENT_DATE - 7
-                                                                                     
+                WHERE safe_flag = 'Y'
+                    AND  COALESCE(est_date_start,Last_confirmed_infections - 13)  >= Last_confirmed_infections  - 13
+                                                                                                                                     
             ) safe
             ON states.geo_key = safe.geo_key 
         UNION ALL
@@ -2551,32 +2582,37 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
                 state_name,
                 safe_flag,
                 2 bucket,
-                MIN(Est_Date_start)   OVER(PARTITION BY geo_key)  Est_Date_start,
-                AVG(mobility_composite)  OVER(PARTITION BY geo_key) mobility_composite
+                MIN(Est_Date_start)   OVER(PARTITION BY geo_key) + 14 Est_Date_start,
+                max(mobility_composite)  OVER(PARTITION BY geo_key) mobility_composite
                 FROM (
                 SELECT geo_key,
                     state_name,
                     infections_per100k,
                     mobility_composite,
                     safe_day,
+                    Last_confirmed_infections,
                     
                     CASE
                         WHEN  
                     SUM(safe_day) OVER (PARTITION BY geo_key
                     ORDER BY modeled_date 
-                    ROWS   13 PRECEDING  ) >= 14 THEN 0 ELSE 1
+                    ROWS   BETWEEN  CURRENT ROW AND 13 FOLLOWING ) >= 14 THEN 'Y' ELSE 'N'
                     END safe_flag,
                         
                     CASE
-                        WHEN safe_flag = 1 THEN modeled_date ELSE NULL
+                        WHEN safe_flag = 'Y' THEN modeled_date ELSE NULL
                     END Est_Date_start
                     FROM (
                     SELECT   geo_key,
                         state_name,
                         f.mobility_composite,
                         f.modeled_date,
-                        CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
-                        
+                        MAX(
+                        CASE
+                            WHEN f.confirmed_infections IS NOT NULL THEN f.modeled_date
+                        END ) OVER(PARTITION BY geo_key) Last_confirmed_infections,
+                            CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
+                            
                         CASE
                             WHEN infections_per100k <4  THEN 1 ELSE 0
                         END safe_day,
@@ -2592,9 +2628,9 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
                         F.GEO_KEY = G.UID
                          --where f.geo_key = 84000001
                         )  a   ) final
-                WHERE safe_flag  = 1
-                    AND  COALESCE(est_date_start,CURRENT_DATE - 7) > CURRENT_DATE - 7
-                                                                                    
+                WHERE safe_flag  = 'N'
+                    AND  COALESCE(est_date_start,Last_confirmed_infections -13)  >= Last_confirmed_infections  - 13
+                                                                                                                                    
             ) Not_safe
             ON states.geo_key = not_safe.geo_key 
         UNION ALL
@@ -2615,7 +2651,7 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
                 FROM ???.F_IND_DASH_Covid_Projections_prev_V a
                 JOIN ???.DIM_GEO_LOCATION_V g ON g.uid = a.geo_key) states  
             JOIN 
-                                                                                 
+                                                                                                                                 
             (
             SELECT DISTINCT
                 geo_key,
@@ -2623,31 +2659,37 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
                 bad_flag,
                 3 bucket,
                 MIN(Est_Date_start) OVER(PARTITION BY geo_key)  Est_Date_start,
-                AVG(mobility_composite) OVER(PARTITION BY geo_key) mobility_composite
+                max(mobility_composite) OVER(PARTITION BY geo_key) mobility_composite
                 FROM (
                 SELECT geo_key,
                     state_name,
                     infections_per100k,
                     mobility_composite,
                     bad_day,
+                    Last_confirmed_infections,
                     
-                   CASE WHEN infections_per100k >=4
-                        and  
+                    CASE
+                        WHEN infections_per100k >=4
+                    AND  
                     SUM(bad_day) OVER (PARTITION BY geo_key
                     ORDER BY modeled_date 
-                    ROWS   13 PRECEDING      ) >= 14 THEN 1 ELSE 0
+                    ROWS  BETWEEN  CURRENT ROW AND 13 FOLLOWING     ) >= 14 THEN 'Y' ELSE 'N'
                     END bad_flag,
                         
                     CASE
-                        WHEN bad_flag = 1 THEN modeled_date ELSE NULL
+                        WHEN bad_flag = 'Y' THEN modeled_date ELSE NULL
                     END Est_Date_start
                     FROM (
                     SELECT   geo_key,
                         state_name,
                         f.mobility_composite,
                         f.modeled_date,
-                        CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
-                        
+                        MAX(
+                        CASE
+                            WHEN f.confirmed_infections IS NOT NULL THEN f.modeled_date
+                        END ) OVER(PARTITION BY geo_key) Last_confirmed_infections,
+                            CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
+                            
                         CASE
                             WHEN infections_per100k <4  THEN 1 ELSE 0
                         END safe_day,
@@ -2662,19 +2704,19 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
                         F.GEO_KEY = G.UID
                          --where f.geo_key = 84000001
                         )  a   ) final
-                WHERE bad_flag = 1
-                    AND  COALESCE(est_date_start,CURRENT_DATE - 1) > CURRENT_DATE - 1
-                                                                                    
+                WHERE bad_flag = 'Y'
+                    AND  COALESCE(est_date_start,Last_confirmed_infections - 14)  >= Last_confirmed_infections - 14 
+                                                                                                                                    
             ) bad 
-                                                                                            
+                                                                                                                                            
             ON states.geo_key = bad.geo_key 
-                                                      
-                                                      
-                                                           
-                                                      
+                                                                                      
+                                                                                      
+                                                                                           
+                                                                                      
         ) for_view 
-                                        
-                                                      --      
+                                                                        
+                                                                                      --      
         LEFT OUTER JOIN 
         (
         SELECT 
@@ -2697,103 +2739,36 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
                 FROM ???.F_IND_DASH_Covid_Projections_prev_V  F                  
             ) MAXDT ON 1=1
             WHERE CAL_DATE_KEY IN (MAX_DT-7)
-                                                
+                                                                                
         ) dt
         ON   1=1
-          -- prevent rows in bucket 2 that are in bucket 1 (mutuall exclusive      
---        QUALIFY
---        CASE
---            WHEN (bucket = 2 AND LAG(bucket, 1, 0) RESPECT NULLS 
---        OVER (PARTITION BY for_view.geo_key
---        ORDER BY bucket) <> 1) OR bucket IN (1,3)  THEN 1 ELSE 0
---        END = 1
-          
+         -- prevent rows in bucket 2 that are in bucket 1 (mutuall exclusive      
+         --        QUALIFY
+         --        CASE
+         --            WHEN (bucket = 2 AND LAG(bucket, 1, 0) RESPECT NULLS 
+         --        OVER (PARTITION BY for_view.geo_key
+         --        ORDER BY bucket) <> 1) OR bucket IN (1,3)  THEN 1 ELSE 0
+         --        END = 1
         ) -- 
-    --    select * from prev where geo_key = 84000038
-     --==================================================================    
-    select  prev_bucket,
-    prev_est_start,
-    prev_est_date_end,
-    prev_snapshot_date,
-    mobility_composite_curr,
-    NEW_ENTRY,
-    GEO_KEY,
-    STATE_NAME,
-    STATE_CODE,
-    Population,
-    mobility_composite,
-    Est_Date_start,
-    Est_Date_end,
-    bucket,
-    seq_week_nbr,
-    SNAPSHOT_DATE,
-    SNAPSHOT_WEEK,
-    CAL_WEEK_YEAR,
-    WEEK_START_DATE,
-    WEEK_END_DATE,
-    cal_day_sat,
-    day_of_year,
-    day_of_cal_1900,
-    DATE_OF_PROJECTIONS,
-    PROJECTIONS_UP_UNTIL
-    from (
-    SELECT   
-       (select prev.Est_Date_start from prev where for_view.geo_key = prev.geo_key and bucket = 3)  prev_3_strt_dt, 
-       (select prev.Est_Date_start from prev where for_view.geo_key = prev.geo_key and bucket = 2)  prev_2_strt_dt, 
-       (select prev.Est_Date_start from prev where for_view.geo_key = prev.geo_key and bucket = 1)  prev_1_strt_dt, 
-       (select prev.Est_Date_end from prev where for_view.geo_key = prev.geo_key and bucket = 3)  prev_3_end_dt, 
-       (select prev.Est_Date_end from prev where for_view.geo_key = prev.geo_key and bucket = 2)  prev_2_end_dt, 
-       (select prev.Est_Date_end from prev where for_view.geo_key = prev.geo_key and bucket = 1)  prev_1_end_dt, 
-    case 
-		when bucket = 1   then
-			case 
-			when prev_1_strt_dt is not null and Est_Date_start <> prev_1_strt_dt then 1
-			end
-		when bucket = 2   then
-			case 
-			when prev_2_strt_dt is not null and Est_Date_start <> prev_2_strt_dt then 2
-			when prev_1_strt_dt is not null then 1
-			end
-		when bucket = 3   then
-			case 
-			when prev_3_strt_dt is not null and Est_Date_start <> prev_3_strt_dt then 3
-			when prev_1_strt_dt is not null then 1
-			end
- 	END  prev_bucket,       
-      
- 	case 
-       when prev_bucket = 1 then  prev_1_strt_dt
-       when prev_bucket = 2 then  prev_2_strt_dt
-       when prev_bucket = 3 then  prev_3_strt_dt
-       else null end prev_est_start,
-            
-    	case 
-       when prev_bucket = 1 then  prev_1_end_dt
-       when prev_bucket = 2 then  prev_2_end_dt
-       when prev_bucket = 3 then  prev_3_end_dt
-       else null end prev_est_date_end,
-
-        (select prev.snapshot_date from prev where for_view.geo_key = prev.geo_key and bucket = prev_bucket) prev_snapshot_date,
-       
-
-      
-       mobility_composite  mobility_composite_curr,
-            
-            
-        NULL   NEW_ENTRY,
-        geo_key,
+     --    select * from prev where geo_key = 84000038
+     --================ main sql ================================================== 
+    
+    SELECT  prev_bucket,
+        prev_est_start,
+        prev_est_date_end,
+        prev_snapshot_date,
+        mobility_composite_curr,
+        NEW_ENTRY,
+        GEO_KEY,
         STATE_NAME,
         STATE_CODE,
         Population,
         mobility_composite,
-         --date_delta,
+        Last_confirmed_infections,
         Est_Date_start,
-        NULL Est_Date_end,
-        Bucket,
-        (
-        SELECT dt2.week_of_year
-            FROM ???.DIM_CALENDAR_V dt2
-            WHERE cal_date_key = Est_Date_start)   - dt.week_of_year seq_week_nbr,
+        Est_Date_end,
+        bucket,
+        seq_week_nbr,
         SNAPSHOT_DATE,
         SNAPSHOT_WEEK,
         CAL_WEEK_YEAR,
@@ -2802,267 +2777,382 @@ REPLACE VIEW ???.F_IND_DASH_Timeline_to_safety_V AS
         cal_day_sat,
         day_of_year,
         day_of_cal_1900,
-        (
-        SELECT MAX(date_key) DATE_OF_PROJECTIONS
-            FROM ???.F_IND_DASH_Covid_Projections_Curr_V) DATE_OF_PROJECTIONS,
-        (
-        SELECT MAX(modeled_date)
-            FROM ???.F_IND_DASH_Covid_Projections_Curr_V)  PROJECTIONS_UP_UNTIL --select *
-        
+        DATE_OF_PROJECTIONS,
+        PROJECTIONS_UP_UNTIL
         FROM (
-        SELECT states.geo_key,
-            states.state_name,
-            states.state_code,
-            states.population,
-            mobility_composite,
-            Est_Date_start,
-            bucket
-            FROM (
-            SELECT DISTINCT date_key,
-                geo_key,
-                g.state_name,
-                g.state_code,
-                g.Population --,  MODELED_DATE,  est_infections_mean
-                
-                FROM ???.F_IND_DASH_Covid_Projections_curr_V a
-                JOIN ???.DIM_GEO_LOCATION_V g ON g.uid = a.geo_key) states  
-                                                                                         
-            JOIN (
-            SELECT DISTINCT
-                geo_key,
-                state_name,
-                safe_flag,
-                1 bucket,
-                MIN(Est_Date_start)  OVER(PARTITION BY geo_key)  Est_Date_start,
-                AVG(mobility_composite) OVER(PARTITION BY geo_key)  mobility_composite
-                FROM (
-                SELECT geo_key,
-                    state_name,
-                    infections_per100k,
-                    mobility_composite,
-                    safe_day,
-                    
-                    CASE
-                        WHEN  
-                    SUM(safe_day) OVER (PARTITION BY geo_key
-                    ORDER BY modeled_date 
-                    ROWS   13 PRECEDING  ) >= 14 THEN 1 ELSE 0
-                    END safe_flag,
-                        
-                    CASE
-                        WHEN safe_flag = 1 THEN modeled_date ELSE NULL
-                    END Est_Date_start
-                    FROM (
-                    SELECT   geo_key,
-                        state_name,
-                        f.mobility_composite,
-                        f.modeled_date,
-                        CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
-                        
-                        CASE
-                            WHEN infections_per100k <4  THEN 1 ELSE 0
-                        END safe_day,
-                            
-                        CASE
-                            WHEN   infections_per100k > LAG(infections_per100k,1) OVER(PARTITION BY uid
-                        ORDER BY modeled_date)
-                        THEN 1 ELSE 0
-                        END bad_day
-                        FROM ???.F_IND_DASH_Covid_Projections_curr_V F 
-                        JOIN ???.DIM_GEO_LOCATION_V G ON
-                        F.GEO_KEY = G.UID
-                         --where f.geo_key = 84000001
-                        )  a   ) final
-                WHERE safe_flag = 1
-                    AND  COALESCE(est_date_start,CURRENT_DATE - 7) > CURRENT_DATE - 7
-                                                                                     
-            ) safe
-            ON states.geo_key = safe.geo_key 
-        UNION ALL
-        SELECT states.geo_key,
-            states.state_name,
-            states.state_code,
-            states.population,
-            mobility_composite,
-            Est_Date_start,
-            bucket
-            FROM (
-            SELECT DISTINCT date_key,
-                geo_key,
-                g.state_name,
-                g.state_code,
-                g.Population --,  MODELED_DATE,  est_infections_mean
-                
-                FROM ???.F_IND_DASH_Covid_Projections_curr_V a
-                JOIN ???.DIM_GEO_LOCATION_V g ON g.uid = a.geo_key) states  
-            JOIN 
+        SELECT   
             (
-            SELECT DISTINCT
-                geo_key,
-                state_name,
-                safe_flag,
-                2 bucket,
-                MIN(Est_Date_start)   OVER(PARTITION BY geo_key)  Est_Date_start,
-                AVG(mobility_composite)  OVER(PARTITION BY geo_key) mobility_composite
-                FROM (
-                SELECT geo_key,
-                    state_name,
-                    infections_per100k,
-                    mobility_composite,
-                    safe_day,
-                    
-                    CASE
-                        WHEN  
-                    SUM(safe_day) OVER (PARTITION BY geo_key
-                    ORDER BY modeled_date 
-                    ROWS   13 PRECEDING  ) >= 14 THEN 0 ELSE 1
-                    END safe_flag,
-                        
-                    CASE
-                        WHEN safe_flag = 1 THEN modeled_date ELSE NULL
-                    END Est_Date_start
-                    FROM (
-                    SELECT   geo_key,
-                        state_name,
-                        f.mobility_composite,
-                        f.modeled_date,
-                        CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
-                        
-                        CASE
-                            WHEN infections_per100k <4  THEN 1 ELSE 0
-                        END safe_day,
-                            
-                        CASE
-                            WHEN   infections_per100k > LAG(infections_per100k,1) OVER(PARTITION BY uid
-                        ORDER BY modeled_date)
-                        THEN 1 ELSE 0
-                        END bad_day
-                        FROM ???.F_IND_DASH_Covid_Projections_curr_V F 
-                        JOIN ???.DIM_GEO_LOCATION_V G ON
-                        F.GEO_KEY = G.UID
-                         --where f.geo_key = 84000001
-                        )  a   ) final
-                WHERE safe_flag  = 1
-                    AND  COALESCE(est_date_start,CURRENT_DATE - 7) > CURRENT_DATE - 7
-                                                                                    
-            ) Not_safe
-            ON states.geo_key = not_safe.geo_key 
-        UNION ALL
-        SELECT states.geo_key,
-            states.state_name,
-            states.state_code,
-            states.population,
-            mobility_composite,
-            bad.Est_Date_start,
-            bucket
-            FROM (
-            SELECT DISTINCT date_key,
-                geo_key,
-                g.state_name,
-                g.state_code,
-                g.Population --,  MODELED_DATE,  est_infections_mean
-                
-                FROM ???.F_IND_DASH_Covid_Projections_curr_V a
-                JOIN ???.DIM_GEO_LOCATION_V g ON g.uid = a.geo_key) states  
-            JOIN 
-                                                                                 
+            SELECT prev.Est_Date_start
+                FROM prev
+                WHERE for_view.geo_key = prev.geo_key
+                    AND  bucket = 3)  prev_3_strt_dt,
             (
-            SELECT DISTINCT
-                geo_key,
-                state_name,
-                bad_flag,
-                3 bucket,
-                MIN(Est_Date_start) OVER(PARTITION BY geo_key)  Est_Date_start,
-                AVG(mobility_composite) OVER(PARTITION BY geo_key) mobility_composite
-                FROM (
-                SELECT geo_key,
-                    state_name,
-                    infections_per100k,
-                    mobility_composite,
-                    bad_day,
-                    
-                   CASE WHEN infections_per100k >=4
-                        and  
-                    SUM(bad_day) OVER (PARTITION BY geo_key
-                    ORDER BY modeled_date 
-                    ROWS   13 PRECEDING      ) >= 14 THEN 1 ELSE 0
-                    END bad_flag,
-                        
-                    CASE
-                        WHEN bad_flag = 1 THEN modeled_date ELSE NULL
-                    END Est_Date_start
-                    FROM (
-                    SELECT   geo_key,
-                        state_name,
-                        f.mobility_composite,
-                        f.modeled_date,
-                        CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
-                        
-                        CASE
-                            WHEN infections_per100k <4  THEN 1 ELSE 0
-                        END safe_day,
-                            
-                        CASE when
-                             infections_per100k > LAG(infections_per100k,1) OVER(PARTITION BY uid
-                        ORDER BY modeled_date)
-                        THEN 1 ELSE 0
-                        END bad_day
-                        FROM ???.F_IND_DASH_Covid_Projections_curr_V F 
-                        JOIN ???.DIM_GEO_LOCATION_V G ON
-                        F.GEO_KEY = G.UID
-                         --where f.geo_key = 84000001
-                        )  a   ) final
-                WHERE bad_flag = 1
-                    AND  COALESCE(est_date_start,CURRENT_DATE - 1) > CURRENT_DATE - 1
-                                                                                    
-            ) bad 
-                                                                                            
-            ON states.geo_key = bad.geo_key 
-                                                      
-                                                      
-                                                           
-                                                      
-        ) for_view 
-                                        
-                                                      --      
-        LEFT OUTER JOIN 
-        (
-        SELECT 
-            MAX(WEEK_END_DATE) OVER () AS SNAPSHOT_DATE,
-            MAX(CAL_WEEK_YEAR) OVER () AS SNAPSHOT_WEEK,
-            MIN(WEEK_START_DATE) OVER () AS FIL_START_DATE_KEY,
-            MAX(WEEK_END_DATE) OVER () FIL_END_DATE_KEY,
+            SELECT prev.Est_Date_start
+                FROM prev
+                WHERE for_view.geo_key = prev.geo_key
+                    AND  bucket = 2)  prev_2_strt_dt,
+            (
+            SELECT prev.Est_Date_start
+                FROM prev
+                WHERE for_view.geo_key = prev.geo_key
+                    AND  bucket = 1)  prev_1_strt_dt,
+            (
+            SELECT prev.Est_Date_end
+                FROM prev
+                WHERE for_view.geo_key = prev.geo_key
+                    AND  bucket = 3)  prev_3_end_dt,
+            (
+            SELECT prev.Est_Date_end
+                FROM prev
+                WHERE for_view.geo_key = prev.geo_key
+                    AND  bucket = 2)  prev_2_end_dt,
+            (
+            SELECT prev.Est_Date_end
+                FROM prev
+                WHERE for_view.geo_key = prev.geo_key
+                    AND  bucket = 1)  prev_1_end_dt,
             
             CASE
-                WHEN RNK =1 THEN 'CURR'
-                WHEN RNK =2 THEN 'PREV'
-            ELSE 'PREV-1'
-            END CURR_curr_FLAG,
-                RANK() OVER (
-            ORDER BY WEEK_END_DATE DESC) RNK,
-                DT.*
-            FROM ???.DIM_CALENDAR_V DT
-            LEFT JOIN (
-            SELECT MAX(DATE_KEY) MAX_DT
-                FROM ???.F_IND_DASH_Covid_Projections_curr_V  F                  
-            ) MAXDT ON 1=1
-            WHERE CAL_DATE_KEY IN (MAX_DT-7)
-                                                
-        ) dt
-        ON   1=1
-       -- where geo_key = 84000038
-          -- prevent rows in bucket 2 that are in bucket 1 (mutuall exclusive      
-        QUALIFY
-        CASE
-            WHEN (bucket = 2 AND LAG(bucket, 1, 0) RESPECT NULLS 
-        OVER (PARTITION BY for_view.geo_key
-        ORDER BY bucket) <> 1) OR bucket IN (1,3)  THEN 1 ELSE 0
-        END = 1
+                WHEN bucket = 1   THEN
+            CASE
+                WHEN prev_1_strt_dt IS NOT NULL AND Est_Date_start <> prev_1_strt_dt THEN 1
+            END
+                WHEN bucket = 2   THEN
+            CASE
+                WHEN prev_2_strt_dt IS NOT NULL AND Est_Date_start <> prev_2_strt_dt THEN 2
+                WHEN prev_1_strt_dt IS NOT NULL THEN 1
+            END
+                WHEN bucket = 3   THEN
+            CASE
+                WHEN prev_3_strt_dt IS NOT NULL AND Est_Date_start <> prev_3_strt_dt THEN 3
+                WHEN prev_1_strt_dt IS NOT NULL THEN 1
+            END
+            END  prev_bucket,
+                
+            CASE
+                WHEN prev_bucket = 1 THEN  prev_1_strt_dt
+                WHEN prev_bucket = 2 THEN  prev_2_strt_dt
+                WHEN prev_bucket = 3 THEN  prev_3_strt_dt
+            ELSE NULL
+            END prev_est_start,
+                
+            CASE
+                WHEN prev_bucket = 1 THEN  prev_1_end_dt
+                WHEN prev_bucket = 2 THEN  prev_2_end_dt
+                WHEN prev_bucket = 3 THEN  prev_3_end_dt
+            ELSE NULL
+            END prev_est_date_end,
+                (
+            SELECT prev.snapshot_date
+                FROM prev
+                WHERE for_view.geo_key = prev.geo_key
+                    AND  bucket = prev_bucket) prev_snapshot_date,
+                mobility_composite  mobility_composite_curr,
+                NULL   NEW_ENTRY,
+                geo_key,
+                STATE_NAME,
+                STATE_CODE,
+                Population,
+                mobility_composite,
+                 --date_delta,
+            Est_Date_start,
+                Last_confirmed_infections,
+                NULL Est_Date_end,
+                Bucket,
+                (
+            SELECT dt2.week_of_year
+                FROM ???.DIM_CALENDAR_V dt2
+                WHERE cal_date_key = Est_Date_start)   - dt.week_of_year seq_week_nbr,
+                SNAPSHOT_DATE,
+                SNAPSHOT_WEEK,
+                CAL_WEEK_YEAR,
+                WEEK_START_DATE,
+                WEEK_END_DATE,
+                cal_day_sat,
+                day_of_year,
+                day_of_cal_1900,
+                Last_confirmed_infections + 1 DATE_OF_PROJECTIONS,
+                (
+            SELECT MAX(modeled_date)
+                FROM ???.F_IND_DASH_Covid_Projections_Curr_V)  PROJECTIONS_UP_UNTIL --select *
+             --select *       
+            
+            FROM (
+            SELECT states.geo_key,
+                states.state_name,
+                states.state_code,
+                states.population,
+                mobility_composite,
+                Est_Date_start,
+                bucket,
+                Last_confirmed_infections
+                FROM (
+                SELECT DISTINCT date_key,
+                    geo_key,
+                    g.state_name,
+                    g.state_code,
+                    g.Population --,  MODELED_DATE,  est_infections_mean
+                    
+                    FROM ???.F_IND_DASH_Covid_Projections_curr_V a
+                    JOIN ???.DIM_GEO_LOCATION_V g ON g.uid = a.geo_key) states  
+                                                                                                                                                         
+                JOIN (
+                SELECT distinct
+                    geo_key,
+                    state_name,
+                    safe_flag,
+                    1 bucket,
+                    Last_confirmed_infections, 
+                    MIN(Est_Date_start)  OVER(PARTITION BY geo_key) + 14  Est_Date_start,
+                    max(mobility_composite) OVER(PARTITION BY geo_key)  mobility_composite 
+                    FROM (
+                    SELECT geo_key,
+                        state_name,
+                        infections_per100k,
+                        mobility_composite,
+                        safe_day,
+                        Last_confirmed_infections,
+                        modeled_date,
+                        CASE
+                            WHEN  
+                        SUM(safe_day) OVER (PARTITION BY geo_key
+                        ORDER BY modeled_date 
+                        ROWS  BETWEEN  CURRENT ROW AND 13 FOLLOWING ) >= 14 THEN 'Y' ELSE 'N'
+                        END safe_flag,
+                            
+                        CASE
+                            WHEN safe_flag = 'Y' THEN modeled_date ELSE NULL
+                        END Est_Date_start
+                        FROM (
+                        SELECT   geo_key,
+                            state_name,
+                            f.mobility_composite,
+                            f.modeled_date,
+                            MAX(
+                            CASE
+                                WHEN f.confirmed_infections IS NOT NULL THEN f.modeled_date
+                            END ) OVER() Last_confirmed_infections,
+                                CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
+                                
+                            CASE
+                                WHEN infections_per100k <4  THEN 1 ELSE 0
+                            END safe_day,
+                                
+                            CASE
+                                WHEN   infections_per100k > LAG(infections_per100k,1) OVER(PARTITION BY uid
+                            ORDER BY modeled_date)
+                            THEN 1 ELSE 0
+                            END bad_day
+                            FROM ???.F_IND_DASH_Covid_Projections_curr_V F 
+                            JOIN ???.DIM_GEO_LOCATION_V G ON
+                            F.GEO_KEY = G.UID
+                           -- where f.geo_key = 84000001
+                            )  a   ) final
+                    WHERE safe_flag = 'Y'
+                        AND  est_date_start > Last_confirmed_infections - 13
+                                                                                                                                                     
+                ) safe
+                ON states.geo_key = safe.geo_key 
+            UNION ALL
+            SELECT states.geo_key,
+                states.state_name,
+                states.state_code,
+                states.population,
+                mobility_composite,
+                Est_Date_start,
+                bucket,
+                Last_confirmed_infections
+                FROM (
+                SELECT DISTINCT date_key,
+                    geo_key,
+                    g.state_name,
+                    g.state_code,
+                    g.Population --,  MODELED_DATE,  est_infections_mean
+                    
+                    FROM ???.F_IND_DASH_Covid_Projections_curr_V a
+                    JOIN ???.DIM_GEO_LOCATION_V g ON g.uid = a.geo_key) states  
+                JOIN 
+                (
+                SELECT DISTINCT
+                    geo_key,
+                    state_name,
+                    safe_flag,
+                    2 bucket,
+                    Last_confirmed_infections,
+                    MIN(Est_Date_start)   OVER(PARTITION BY geo_key) + 14 Est_Date_start,
+                    max(mobility_composite)  OVER(PARTITION BY geo_key) mobility_composite
+                    FROM (
+                    SELECT geo_key,
+                        state_name,
+                        infections_per100k,
+                        mobility_composite,
+                        safe_day,
+                        Last_confirmed_infections,
+                        
+                        CASE
+                            WHEN  
+                        SUM(safe_day) OVER (PARTITION BY geo_key
+                        ORDER BY modeled_date 
+                        ROWS   BETWEEN  CURRENT ROW AND 13 FOLLOWING  ) >= 14 THEN 'Y' ELSE 'N'
+                        END safe_flag,
+                            
+                        CASE
+                            WHEN safe_flag = 'Y' THEN modeled_date ELSE NULL
+                        END Est_Date_start
+                        FROM (
+                        SELECT   geo_key,
+                            state_name,
+                            f.mobility_composite,
+                            f.modeled_date,
+                            MAX(
+                            CASE
+                                WHEN f.confirmed_infections IS NOT NULL THEN f.modeled_date
+                            END ) OVER() Last_confirmed_infections,
+                                CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
+                                
+                            CASE
+                                WHEN infections_per100k <4  THEN 1 ELSE 0
+                            END safe_day,
+                                
+                            CASE
+                                WHEN   infections_per100k > LAG(infections_per100k,1) OVER(PARTITION BY uid
+                            ORDER BY modeled_date)
+                            THEN 1 ELSE 0
+                            END bad_day
+                            FROM ???.F_IND_DASH_Covid_Projections_curr_V F 
+                            JOIN ???.DIM_GEO_LOCATION_V G ON
+                            F.GEO_KEY = G.UID
+                             --where f.geo_key = 84000002
+                            )  a   ) final
+                    WHERE safe_flag = 'N'
+                        AND  COALESCE(est_date_start,Last_confirmed_infections -13)  >= Last_confirmed_infections  - 13
+                                                                                                                                                    
+                ) Not_safe
+                ON states.geo_key = not_safe.geo_key 
+            UNION ALL
+            SELECT states.geo_key,
+                states.state_name,
+                states.state_code,
+                states.population,
+                mobility_composite,
+                bad.Est_Date_start,
+                bucket,
+                Last_confirmed_infections
+                FROM (
+                SELECT DISTINCT date_key,
+                    geo_key,
+                    g.state_name,
+                    g.state_code,
+                    g.Population --,  MODELED_DATE,  est_infections_mean
+                    
+                    FROM ???.F_IND_DASH_Covid_Projections_curr_V a
+                    JOIN ???.DIM_GEO_LOCATION_V g ON g.uid = a.geo_key) states  
+                JOIN 
+                                                                                                                                                 
+                (
+                SELECT DISTINCT
+                    geo_key,
+                    state_name,
+                    bad_flag,
+                    3 bucket,
+                    Last_confirmed_infections,
+                    MIN(Est_Date_start) OVER(PARTITION BY geo_key)  Est_Date_start,
+                    max(mobility_composite) OVER(PARTITION BY geo_key) mobility_composite
+                    FROM (
+                    SELECT geo_key,
+                        state_name,
+                        infections_per100k,
+                        mobility_composite,
+                        bad_day,
+                        Last_confirmed_infections,
+                        
+                        CASE
+                            WHEN infections_per100k >=4
+                        AND  
+                        SUM(bad_day) OVER (PARTITION BY geo_key
+                        ORDER BY modeled_date 
+                        ROWS   BETWEEN  CURRENT ROW AND 13 FOLLOWING    ) >= 14 THEN 'Y' ELSE 'N'
+                        END bad_flag,
+                            
+                        CASE
+                            WHEN bad_flag = 'Y' THEN modeled_date ELSE NULL
+                        END Est_Date_start
+                        FROM (
+                        SELECT   geo_key,
+                            state_name,
+                            f.mobility_composite,
+                            f.modeled_date,
+                            MAX(
+                            CASE
+                                WHEN f.confirmed_infections IS NOT NULL THEN f.modeled_date
+                            END ) OVER() Last_confirmed_infections,
+                                CAST(  est_infections_mean*(CAST(100000 AS DECIMAL(15,4)) /population) AS DECIMAL(15,4)) infections_per100k,
+                                
+                            CASE
+                                WHEN infections_per100k <4  THEN 1 ELSE 0
+                            END safe_day,
+                                
+                            CASE
+                                WHEN
+                            infections_per100k > LAG(infections_per100k,1) OVER(PARTITION BY uid
+                            ORDER BY modeled_date)
+                            THEN 1 ELSE 0
+                            END bad_day
+                            FROM ???.F_IND_DASH_Covid_Projections_curr_V F 
+                            JOIN ???.DIM_GEO_LOCATION_V G ON
+                            F.GEO_KEY = G.UID
+                             --  where f.geo_key = 84000002
+                            )  a   ) final
+                    WHERE bad_flag = 'Y'
+                        AND  est_date_start > Last_confirmed_infections   - 14 
+                                                                                                                                                    
+                ) bad 
+                                                                                                                                                            
+                ON states.geo_key = bad.geo_key 
+                                                                                                      
+                                                                                                      
+                                                                                                           
+                                                                                                      
+            ) for_view 
+                                                                                        
+                                                                                                      --      
+            LEFT OUTER JOIN 
+            (
+            SELECT 
+                MAX(WEEK_END_DATE) OVER () AS SNAPSHOT_DATE,
+                MAX(CAL_WEEK_YEAR) OVER () AS SNAPSHOT_WEEK,
+                MIN(WEEK_START_DATE) OVER () AS FIL_START_DATE_KEY,
+                MAX(WEEK_END_DATE) OVER () FIL_END_DATE_KEY,
+                
+                CASE
+                    WHEN RNK =1 THEN 'CURR'
+                    WHEN RNK =2 THEN 'PREV'
+                ELSE 'PREV-1'
+                END CURR_curr_FLAG,
+                    RANK() OVER (
+                ORDER BY WEEK_END_DATE DESC) RNK,
+                    DT.*
+                FROM ???.DIM_CALENDAR_V DT
+                LEFT JOIN (
+                SELECT MAX(DATE_KEY) MAX_DT
+                    FROM ???.F_IND_DASH_Covid_Projections_curr_V  F                  
+                ) MAXDT ON 1=1
+                WHERE CAL_DATE_KEY IN (MAX_DT-7)
+                                                                                                
+            ) dt
+            ON   1=1
+                                                       -- where geo_key = 84000038
+                                                          -- prevent rows in bucket 2 that are in bucket 1 (mutuall exclusive      
+            QUALIFY
+            CASE
+                WHEN (bucket = 2 AND LAG(bucket, 1, 0) RESPECT NULLS 
+            OVER (PARTITION BY for_view.geo_key
+            ORDER BY bucket) <> 1) OR bucket IN (1,3)  THEN 1 ELSE 0
+            END = 1
         ) final;
 
-
 REPLACE VIEW ???.F_IND_DASH_NYT_COVID19_DATAHUB_TD_EMP_LOC_V AS 
-LOCKING ROW FOR ACCESS
+    LOCKING ROW FOR ACCESS
     SELECT 
         H.SNAPSHOT_DATE,
         H.SNAPSHOT_WEEK,
@@ -3088,55 +3178,70 @@ LOCKING ROW FOR ACCESS
         H.RECOVERY_FLAG,
         H.SAFE_FLAG,
         H.SURGE_FLAG,
-        CASE WHEN RANK() OVER (PARTITION BY H.SNAPSHOT_DATE, H.STATE_CODE ORDER BY H.GEO_KEY) = 1
-             THEN DM.BUCKET
-             ELSE NULL
+        
+        CASE
+            WHEN RANK() OVER (PARTITION BY H.SNAPSHOT_DATE, H.STATE_CODE
+        ORDER BY H.GEO_KEY) = 1
+        THEN DM.BUCKET
+        ELSE NULL
         END AS STATE_TTS_BUCKET,
-        CASE WHEN RANK() OVER (PARTITION BY H.SNAPSHOT_DATE, H.STATE_CODE ORDER BY H.GEO_KEY) = 1
-             THEN DM.EST_DATE_START 
-             ELSE NULL
+            
+        CASE
+            WHEN RANK() OVER (PARTITION BY H.SNAPSHOT_DATE, H.STATE_CODE
+        ORDER BY H.GEO_KEY) = 1
+        THEN DM.EST_DATE_START 
+        ELSE NULL
         END AS STATE_TTS_EST_START_DATE,
-        CASE WHEN RANK() OVER (PARTITION BY H.SNAPSHOT_DATE, H.STATE_CODE ORDER BY H.GEO_KEY) = 1
-             THEN ICU.PEAK_ICU_BED_DAY_MEAN 
-             ELSE NULL
+            
+        CASE
+            WHEN RANK() OVER (PARTITION BY H.SNAPSHOT_DATE, H.STATE_CODE
+        ORDER BY H.GEO_KEY) = 1
+        THEN ICU.PEAK_ICU_BED_DAY_MEAN 
+        ELSE NULL
         END AS STATE_PEAK_ICU_BEDS_MEAN_DATE,
-        DH.TESTED_CNT,
-        DH.CONFIRMED_CNT,
-        DH.RECOVERED_CNT,
-        DH.DEATH_CNT,
-        DH.HOSPITALIZED_CNT,
-        DH.ON_VENTILATOR_CNT,
-        DH.IN_ICU_CNT,
-        DH.SEVERE_CASE_CNT,
-        DH.SCHOOL_CLOSING,
-        DH.WORKPLACE_CLOSING,
-        DH.CANCEL_EVENTS,
-        DH.GATHERINGS_RESTRICTIONS,
-        DH.TRANSPORT_CLOSING,
-        DH.STAY_HOME_RESTRICTIONS,
-        DH.INTERNAL_MOVEMENT_RESTRICTIONS,
-        DH.INTERNATIONAL_MOVEMENT_RESTRICTIONS,
-        DH.INFORMATION_CAMPAIGNS,
-        DH.TESTING_POLICY,
-        DH.CONTACT_TRACING,
-        DH.STRINGENCY_INDEX,
-        (CASE WHEN COALESCE(TRIM(SMSA.MSA_WITH_SITE),'') = '' THEN 0 ELSE 1 END) MSA_WITH_SITE_FLAG,
-        SA.SITE_ID            AS SITE_ID,
-        SA.SITE_TYPE          AS SITE_TYPE,
-        SA.ADDRESS            AS SITE_ADDRESS,
-        INITCAP(LOWER(SA.CITY)) AS SITE_CITY_NAME,
-        SA.MSA_NAME           AS SITE_MSA_NAME,
-        SA.COUNTY_NAME        AS SITE_COUNTY_NAME,
-        SA.STATE_NAME         AS SITE_STATE_NAME,
-        SA.FTE_HC_AT_LOCATION AS SITE_FTE_CNT,
-        SA.CONTINGENT_HC_AT_LOCATION AS SITE_NONFTE_CNT,
-        SA.AVERAGE_ATTENDANCE AS SITE_AVG_ATTENDANCE,
-        SA.SECURITY_TYPE      AS SITE_SECURITY_TYPE,
-        (CASE WHEN COALESCE(TRIM(EMSA.MSA_WITH_EMP),'') = '' THEN 0 ELSE 1 END) MSA_WITH_EMP_FLAG,
-        PL.MSA_NAME           AS EMP_MSA_NAME,
-        PL.COUNTY_NAME        AS EMP_COUNTY_NAME,
-        PL.STATE_NAME         AS EMP_LOC_STATE_NAME,
-        SUM(
+            DH.TESTED_CNT,
+            DH.CONFIRMED_CNT,
+            DH.RECOVERED_CNT,
+            DH.DEATH_CNT,
+            DH.HOSPITALIZED_CNT,
+            DH.ON_VENTILATOR_CNT,
+            DH.IN_ICU_CNT,
+            DH.SEVERE_CASE_CNT,
+            DH.SCHOOL_CLOSING,
+            DH.WORKPLACE_CLOSING,
+            DH.CANCEL_EVENTS,
+            DH.GATHERINGS_RESTRICTIONS,
+            DH.TRANSPORT_CLOSING,
+            DH.STAY_HOME_RESTRICTIONS,
+            DH.INTERNAL_MOVEMENT_RESTRICTIONS,
+            DH.INTERNATIONAL_MOVEMENT_RESTRICTIONS,
+            DH.INFORMATION_CAMPAIGNS,
+            DH.TESTING_POLICY,
+            DH.CONTACT_TRACING,
+            DH.STRINGENCY_INDEX,
+            (
+        CASE
+            WHEN COALESCE(TRIM(SMSA.MSA_WITH_SITE),'') = '' THEN 0 ELSE 1
+        END) MSA_WITH_SITE_FLAG,
+            SA.SITE_ID            AS SITE_ID,
+            SA.SITE_TYPE          AS SITE_TYPE,
+            SA.ADDRESS            AS SITE_ADDRESS,
+            INITCAP(LOWER(SA.CITY)) AS SITE_CITY_NAME,
+            SA.MSA_NAME           AS SITE_MSA_NAME,
+            SA.COUNTY_NAME        AS SITE_COUNTY_NAME,
+            SA.STATE_NAME         AS SITE_STATE_NAME,
+            SA.FTE_HC_AT_LOCATION AS SITE_FTE_CNT,
+            SA.CONTINGENT_HC_AT_LOCATION AS SITE_NONFTE_CNT,
+            SA.AVERAGE_ATTENDANCE AS SITE_AVG_ATTENDANCE,
+            SA.SECURITY_TYPE      AS SITE_SECURITY_TYPE,
+            (
+        CASE
+            WHEN COALESCE(TRIM(EMSA.MSA_WITH_EMP),'') = '' THEN 0 ELSE 1
+        END) MSA_WITH_EMP_FLAG,
+            PL.MSA_NAME           AS EMP_MSA_NAME,
+            PL.COUNTY_NAME        AS EMP_COUNTY_NAME,
+            PL.STATE_NAME         AS EMP_LOC_STATE_NAME,
+            SUM(
         CASE
             WHEN UPPER(PEOPLE_TYPE) = 'VIRTUAL' THEN COALESCE(NBR_AT_LOCATION,0) ELSE 0
         END) AS LOC_VIRTUAL_EMP_CNT,
@@ -3153,9 +3258,14 @@ LOCKING ROW FOR ACCESS
         LEFT JOIN ???.FACT_COVID19_DATAHUB_V DH ON
         HW.DATE_KEY        = DH.DATE_KEY AND 
         HW.GEO_KEY         = DH.GEO_KEY
-        LEFT JOIN (SELECT STATE_NAME, COUNTY_NAME, MSA_NAME 
-                   FROM ???.DIM_ZIPCODE_COUNTY_MSA_LKUP_V 
-                   GROUP BY 1,2,3) LKP ON
+        LEFT JOIN (
+        SELECT STATE_NAME,
+            COUNTY_NAME,
+            MSA_NAME
+            FROM ???.DIM_ZIPCODE_COUNTY_MSA_LKUP_V
+            GROUP BY 1,
+                2,
+                3) LKP ON
         H.COUNTY           = LKP.COUNTY_NAME AND
         H.STATE_NAME       = LKP.STATE_NAME
         LEFT JOIN ???.DIM_SITE_ADDRESSES_V SA ON
@@ -3163,29 +3273,32 @@ LOCKING ROW FOR ACCESS
         H.STATE_NAME          = SA.STATE_NAME AND
         UPPER(SA.CLIENT_NAME) = 'TERADATA' AND
         SA.COUNTRY_CD         = 'USA'
-        LEFT JOIN (SELECT MSA_NAME AS MSA_WITH_SITE 
-                   FROM ???.DIM_SITE_ADDRESSES_V
-                   WHERE UPPER(CLIENT_NAME) = 'TERADATA' AND
-                         COUNTRY_CD         = 'USA'
-				   GROUP BY 1
-                  ) SMSA ON 
+        LEFT JOIN (
+        SELECT MSA_NAME AS MSA_WITH_SITE
+            FROM ???.DIM_SITE_ADDRESSES_V
+            WHERE UPPER( CLIENT_NAME) = 'TERADATA'
+                AND  COUNTRY_CD         = 'USA'
+            GROUP BY 1
+        ) SMSA ON 
         LKP.MSA_NAME = SMSA.MSA_WITH_SITE
         LEFT JOIN ???.DIM_PEOPLE_LOCATION_V PL ON
         H.COUNTY     = PL.COUNTY_NAME AND
         H.STATE_NAME = PL.STATE_NAME
-        LEFT JOIN (SELECT MSA_NAME AS MSA_WITH_EMP 
-                   FROM ???.DIM_PEOPLE_LOCATION_V
-				   GROUP BY 1
-                  ) EMSA ON 
+        LEFT JOIN (
+        SELECT MSA_NAME AS MSA_WITH_EMP
+            FROM ???.DIM_PEOPLE_LOCATION_V
+            GROUP BY 1
+        ) EMSA ON 
         LKP.MSA_NAME = EMSA.MSA_WITH_EMP
         LEFT JOIN ???.F_IND_DASH_TIMELINE_TO_SAFETY_V DM ON 
-        H.SNAPSHOT_DATE   = DM.SNAPSHOT_DATE AND
+        /*H.SNAPSHOT_DATE   = DM.SNAPSHOT_DATE AND data may lag so can't use this for join*/
         H.STATE_CODE      = DM.STATE_CODE AND
         DM.BUCKET         = 1
         LEFT JOIN ???.FACT_COVID_MODEL_DATA_SUM_V ICU ON 
         H.STATE_CODE        = ICU.STATE_CODE AND
         ICU.GEO_GRANULARITY = 'STATE'
         WHERE H.CURR_PREV_FLAG = 'CURR' --and H.state_name = 'Iowa'
+        
         GROUP BY H.SNAPSHOT_DATE,
             H.SNAPSHOT_WEEK,
             H.CURR_PREV_FLAG,
@@ -3233,7 +3346,10 @@ LOCKING ROW FOR ACCESS
             DH.TESTING_POLICY,
             DH.CONTACT_TRACING,
             DH.STRINGENCY_INDEX,
-            (CASE WHEN COALESCE(TRIM(SMSA.MSA_WITH_SITE),'') = '' THEN 0 ELSE 1 END),
+            (
+        CASE
+            WHEN COALESCE(TRIM(SMSA.MSA_WITH_SITE),'') = '' THEN 0 ELSE 1
+        END),
             SA.SITE_ID,
             SA.SITE_TYPE,
             SA.ADDRESS,
@@ -3245,7 +3361,10 @@ LOCKING ROW FOR ACCESS
             SA.CONTINGENT_HC_AT_LOCATION,
             SA.AVERAGE_ATTENDANCE,
             SA.SECURITY_TYPE,
-            (CASE WHEN COALESCE(TRIM(EMSA.MSA_WITH_EMP),'') = '' THEN 0 ELSE 1 END),
+            (
+        CASE
+            WHEN COALESCE(TRIM(EMSA.MSA_WITH_EMP),'') = '' THEN 0 ELSE 1
+        END),
             PL.MSA_NAME,
             PL.COUNTY_NAME,
             PL.STATE_NAME;
@@ -3322,6 +3441,73 @@ SELECT
            THEN DT.CURR_PREV_FLAG
       END IN ('CURR','PREV','PREV-1','PREV-2','PREV-3')
    ) T;
+   
+   
+
+REPLACE VIEW ???.XREF_SOURCE_DATA_UPDATES_V  AS
+LOCKING ROW FOR ACCESS
+
+SELECT COALESCE(t1.Category,'NON') AS Category,COALESCE(StagingTable,'NON') AS StagingTable,COALESCE(t1.DataSource,'NO STAGING SOURCE DEFINED') AS DataSource,COALESCE(t2.Metric_Name,'NOT USED IN THE REPORTS') AS MetricName,COALESCE(CoreTable,'NOT USED IN THE REPORTS') as CoreTable, COALESCE(t2.MaxAvailableDate,t1.MaxAvailableDate) as MaxAvailableDate
+FROM (
+	SELECT 'BEA - Personal Consumption 2-3-5' as Category,'STG_BEA_PersonalConsumption_2_3_5' as StagingTable,'Manual                                                                               ' as DataSource, MAX(CAST("PERIOD_MMM-YYYY" AS DATE FORMAT 'MMM-YYYY')) as MaxAvailableDate from ???.STG_BEA_PersonalConsumption_2_3_5
+	UNION
+	SELECT 'BEA - Personal Consumption 2-4-5','STG_BEA_PersonalConsumption_2_4_5' as StagingTable,'Manual', MAX(CAST("PERIOD_MMM-YYYY" AS DATE FORMAT 'MMM-YYYY')) from ???.STG_BEA_PersonalConsumption_2_4_5
+	UNION
+	SELECT 'COVID19 National Estimates','STG_COVID19_NATIONAL_ESTIMATES' as StagingTable,'Manual', MAX(CollectionDate) from ???.STG_COVID19_NATIONAL_ESTIMATES
+	UNION
+	SELECT 'COVID19 Statistics','STG_covid19_stats' as StagingTable,'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv', MAX(CAST(Date_Key AS DATE FORMAT 'YYYY-MM-DD')) FROM ???.STG_covid19_stats
+	UNION
+	SELECT 'COVID19 Projections','STG_Hospitalization_all_locs' as StagingTable,'https://ihmecovid19storage.blob.core.windows.net/latest/ihme-covid19.zip', MAX(CAST("Date" AS DATE FORMAT 'YYYY-MM-DD')) FROM ???.STG_Hospitalization_all_locs
+	UNION
+	SELECT 'Google Trends','STG_Google_Search_IOT' as StagingTable,'Python Pytrends API', MAX(CAST("Date" AS DATE FORMAT 'YYYY-MM-DD')) FROM ???.STG_Google_Search_IOT
+	UNION
+	SELECT 'Google Mobility','STG_Google_Mobility' as StagingTable,'https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv', MAX(CAST(date_key AS DATE FORMAT 'YYYY-MM-DD')) FROM ???.STG_Google_Mobility
+	UNION
+	SELECT 'COVID19 Datahhub','STG_COVID19_Datahub_LVL3' as StagingTable,'Python Covid19 Datahub', MAX(CAST(date_key AS DATE FORMAT 'YYYY-MM-DD')) FROM ???.STG_COVID19_Datahub_LVL3
+	UNION
+	SELECT 'Labor Statistics','STG_Labor_Stats_LNS13000000' as StagingTable,'https://api.bls.gov/publicAPI/v2/timeseries/data', MAX(CAST(year_key||'-'||oreplace(period_key,'M',null) AS DATE FORMAT 'YYYY-MM')) FROM ???.STG_Labor_Stats_LNS13000000
+	UNION
+	SELECT 'Fuel Production','STG_Fuel_Production' as StagingTable,'https://www.eia.gov/dnav/pet/xls/PET_CONS_WPSUP_K_4.xls', MAX(date_key) FROM ???.STG_Fuel_Production
+	UNION
+	SELECT 'TSA Travel','STG_TSA_TRAVEL' as StagingTable,'https://www.tsa.gov/coronavirus/passenger-throughput', MAX(cast(TO_DATE((lpad(STRTOK(travel_date,'/',1),2,'0')||'/'||lpad(STRTOK(travel_date,'/',1),2,'0')|| '/'||STRTOK(travel_date,'/',3)),'MM/DD/YYYY') as date)) FROM ???.STG_TSA_TRAVEL WHERE Travel_Date is not null
+	UNION
+	SELECT 'Census Data','STG_US_CENSUS_SURVEY' as StagingTable,'https://www.census.gov/econ/currentdata/export/csv', MAX(CAST("PERIOD" AS DATE FORMAT 'MMM-YYYY')) FROM ???.STG_US_CENSUS_SURVEY
+	UNION
+	SELECT 'Consumer Sentiment Index','STG_Consumer_Sentiment_Index' as StagingTable,'http://www.sca.isr.umich.edu/files/tbcics.csv', MAX(CAST(SUBSTR("Month",1,3)||'-'||"Year" AS DATE FORMAT 'MMM-YYYY')) FROM ???.STG_Consumer_Sentiment_Index
+	UNION
+	SELECT 'Consumer Price Index','STG_Labor_Stats_CUSR0000SA0' as StagingTable,'https://api.bls.gov/publicAPI/v2/timeseries/data', MAX(CAST(year_key||'-'||oreplace(period_key,'M',null) AS DATE FORMAT 'YYYY-MM')) FROM ???.STG_Labor_Stats_CUSR0000SA0) t1
+	--
+FULL OUTER JOIN (SELECT CASE WHEN Metric_Name IN ('Household - Clothing & Footwear','Household - Food Services & Accommodation','Personal Consumption Expenditure (Product Details)') THEN 'BEA - Personal Consumption 2-4-5'
+						WHEN Metric_Name IN ('US Product Supplied 4WKAVG') THEN 'Fuel Production'
+						WHEN Metric_Name IN ('Unemployment Level','Unemployment Rate') THEN 'Labor Statistics'
+						WHEN Metric_Name IN ('CPI') THEN 'Consumer Price Index'
+						WHEN Metric_Name IN ('%Mobility_Change_Baseline for Grocery & pharmacy',
+											'%Mobility_Change_Baseline for Parks',
+											'%Mobility_Change_Baseline for Residential',
+											'%Mobility_Change_Baseline for Retail & recreation',
+											'%Mobility_Change_Baseline for Transit Stations',
+											'%Mobility_Change_Baseline for Workplace') THEN 'Google Mobility'
+						WHEN Metric_Name IN ('Consumer Sentiment Index') THEN 'Consumer Sentiment Index'
+						WHEN Metric_Name IN ('Traffic Volume') THEN 'TSA Travel'
+						WHEN Metric_Name IN ('New Daily Cases','New Daily Deaths','Deaths to-date','Cases to-date') THEN 'COVID19 Statistics'
+						WHEN Metric_Name IN ('Total units') THEN 'Census Data'
+					END AS Category,
+					Metric_Name,'FACT_INDICATOR_DASHBOARD_T2_P' AS CoreTable, MAX(Date_Key) as MaxAvailableDate
+			FROM ???.FACT_INDICATOR_DASHBOARD_T2_P
+			GROUP BY 1,2
+			UNION
+			SELECT 'Google Trends',TREND_Name,'F_IND_DASH_GOOGLE_TRENDS', MAX(Date_Key) as MaxAvailableDate
+			FROM ???.F_IND_DASH_GOOGLE_TRENDS
+			GROUP BY 1,2
+			UNION
+			SELECT 'COVID19 Datahhub','COVID19 Metrics','FACT_COVID19_DATAHUB', MAX(Date_Key) as MaxAvailableDate
+			FROM ???.FACT_COVID19_DATAHUB
+			UNION
+			SELECT 'COVID19 Projections','COVID19 Projection Metrics','FACT_Covid_Model_Data', MAX(Date_Key) as MaxAvailableDate
+			FROM ???.FACT_Covid_Model_Data
+			) t2
+			--
+ON t2.Category = t1.Category;
 
 
 REPLACE PROCEDURE ???.ETL_BEA_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
@@ -3349,28 +3535,20 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_P';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_BEA_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
+
 
 /******************************************************************/
 --Put Your Transformation Logic Here
@@ -3591,25 +3769,16 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_P';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_CENSUS_DATA_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -3863,25 +4032,16 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_P';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_CONSUMER_SENTIMENT_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -4071,499 +4231,579 @@ INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v
 END;
 
 
-
-REPLACE PROCEDURE ???.ETL_COVID19_DATAHUB_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
+REPLACE PROCEDURE ???.ETL_COVID_CASES_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
 /*********************************************************************************************************/
 /* 
-Procedure Name    : ETL_COVID19_DATAHUB_CORE                                              		
+Procedure Name    : ETL_COVID_CASES_CORE                                                 		
 Developed By      : Teradata Team                                                                            			  
-Created           : JuLY 5, 2020 			                                                                           		     
-Description       : This Procecdure is used to Upcert ETL_COVID19_DATAHUB_CORE Table									 
-Procedure syntax  : CALL ETL_COVID19_DATAHUB_CORE (v_MsgTxt,v_RowCnt,v_ResultSet) ;      
+Created           : June 26, 2020 			                                                                           		     
+Description       : This Procecdure is used to Upcert FACT_INDICATOR_DASHBOARD_T2_p Table									 
+Procedure syntax  : CALL ETL_COVID_CASES_CORE (v_MsgTxt,v_RowCnt,v_ResultSet) ;      
 
 1 - Represnts Failure
 Null - Represnts Success   
                                                                                                                                   
 Date           	Ver#		Modified By(Name)       	Version Comments                   
 -----------   	-------     -------------------------	----------------------------                       
-07/05/2020      1.0         Teradata DW              	Initial
-07/06/2020		2.0         Teradata DW              	Added LVL2 Code
-07/06/2020		3.0			Teradata DW					severe column was not being passed anymore set to null
+06/26/2020      1.0         Teradata DW              	Initial
+07/21/2020      2.0         Teradata DW              	Added Moving Average Physical Tables & Stats Collection
+07/22/2020		3.0			Teradata DW					Replaced the entire code to be incremental
+07/26/2020		4.0			Teradata DW					Added the historical one time load step which is only run for new installations
+07/29/2020		5.0			Teradata DW					Modified the the merge
 */
 /*****************************************************************************************************/
 SQL SECURITY INVOKER
 BEGIN
 
  /* Local Variable Declaration */ 
-DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_COVID19_DATAHUB';
+DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_p';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
-DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_COVID19_DATAHUB_CORE';
+DECLARE v_BaseData INTEGER;
+DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_COVID_CASES_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
+
 
 /******************************************************************/
 --Put Your Transformation Logic Here
 /******************************************************************/
 
- 
-MERGE INTO ???.FACT_COVID19_DATAHUB as target
-USING    
- ( select x.PROCESS_TYPE,      	
-   	x.date_key,
-    x.GEO_KEY,
-    x.TEST_CNT,
-    x.confirmed_CNT,
-    x.recovered_CNT,
-    x.deaths_CNT,
-    x.HOSPITALIZED_CNT,
-    x.ON_VENTILATOR_CNT,
-    x.IN_ICU_CNT,
-    x.SEVERE_CASE_CNT,
-    x.population  ,
-    x.school_closing  ,
-    x.workplace_closing  ,
-    x.cancel_events  ,
-    x.gatherings_restrictions  ,
-    x.transport_closing  ,
-    x.stay_home_restrictions  ,
-    x.internal_movement_restrictions  ,
-    x.international_movement_restrictions  ,
-    x.information_campaigns  ,
-    x.testing_policy  ,
-    x.contact_tracing  ,
-    x.stringency_index  ,
-    x.key_STR,
-    x.key_numeric,
-    x.key_google_mobility,
-    x.key_apple_mobility,
-    x.key_alpha_2, 
-    x.REC_INS_TS 
-   --select *  
-from  
-  
-  (
-  
- select  a.date_key,
-    a.GEO_KEY,
-    a.TEST_CNT,
-    a.confirmed_CNT,
-    a.recovered_CNT,
-    a.deaths_CNT,
-    a.HOSPITALIZED_CNT,
-    a.ON_VENTILATOR_CNT,
-    a.IN_ICU_CNT,
-    a.SEVERE_CASE_CNT,
-    a.population  ,
-    a.school_closing  ,
-    a.workplace_closing  ,
-    a.cancel_events  ,
-    a.gatherings_restrictions  ,
-    a.transport_closing  ,
-    a.stay_home_restrictions  ,
-    a.internal_movement_restrictions  ,
-    a.international_movement_restrictions  ,
-    a.information_campaigns  ,
-    a.testing_policy  ,
-    a.contact_tracing  ,
-    a.stringency_index  ,
-    a.key_STR,
-    a.key_numeric,
-    a.key_google_mobility,
-    a.key_apple_mobility,
-    a.key_alpha_2, 
-    a.REC_INS_TS ,
- 
-    CASE
-          WHEN b.date_KEY IS NULL
-                 THEN 'I'
-          WHEN b.date_KEY is not null  
-          and ( a.TEST_CNT <> b.TESTED_CNT or
-                a.confirmed_CNT <> b.confirmed_CNT or
-    			a.recovered_CNT <> b.recovered_CNT or
-    			a.HOSPITALIZED_CNT <> b.HOSPITALIZED_CNT or
-    			a.deaths_CNT <> b.death_CNT  or
-   				a.ON_VENTILATOR_CNT <> b.ON_VENTILATOR_CNT or
-    			a.IN_ICU_CNT <> b.IN_ICU_CNT or
-    			a.SEVERE_CASE_CNT <> b.SEVERE_CASE_CNT )
-                -- put weird logic here
-                 THEN 'U'
-          ELSE NULL
-                     END AS PROCESS_TYPE
-                     
-                     --select *
-    from (
+-- New York Times covid case cases
+-- Historical Load
+-- 07.29.20 Changes
+SELECT COUNT(*) INTO v_BaseData
+FROM ???.FACT_INDICATOR_DASHBOARD_T2_P
+WHERE DOMAIN_NAME = 'Covid19 NYT';
 
-
-SELECT 
-   cast ( date_key as date) date_key,
-    UID GEO_KEY,
-    tests TEST_CNT,
-    confirmed confirmed_CNT,
-    recovered recovered_CNT,
-    deaths deaths_CNT,
-    hosp HOSPITALIZED_CNT,
-    vent  ON_VENTILATOR_CNT,
-    icu IN_ICU_CNT,
-	-- 07/17/20 Changes
-    0 SEVERE_CASE_CNT,
-	-- End of Changes
-    l3.population  ,
-    school_closing  ,
-    workplace_closing  ,
-    cancel_events  ,
-    gatherings_restrictions  ,
-    transport_closing  ,
-    stay_home_restrictions  ,
-    internal_movement_restrictions  ,
-    international_movement_restrictions  ,
-    information_campaigns  ,
-    testing_policy  ,
-    contact_tracing  ,
-    stringency_index  ,
-    "key" key_STR,
-    key_numeric,
-    key_google_mobility,
-    key_apple_mobility,
-    key_alpha_2 ,
- 	current_timestamp(0) REC_INS_TS
- 	--select min(date_key)
-from ???.STG_COVID19_Datahub_LVL3 l3
-left outer join ???.DIM_GEO_LOCATION_V g
-on l3.key_numeric  =  g.fips 
-where g.uid is not null ) a
- 
-        LEFT OUTER JOIN ???.FACT_COVID19_DATAHUB_v b
-           ON   a.DATE_KEY = b.DATE_KEY 
-           and a.GEO_key = b.GEO_key 
-       
-                ) AS x
-WHERE x.PROCESS_TYPE  IS NOT NULL 
-         
-)  as source
-  
-
--- join on primary key is obligatory
-
-ON  source.date_key = target.date_key
- and source.GEO_KEY = target.GEO_KEY
---WHEN MATCHED THEN UPDATE
---SET product_status  = source.product_status
+IF v_BaseData = 0 THEN -- One time Historical Load
+--
+MERGE INTO ???.FACT_INDICATOR_DASHBOARD_T2_P AS TGT
+USING  
+  ( 
+    SELECT 
+		  COALESCE(F.INDICATOR_KEY, MAXKEY.MAX_ID + ROW_NUMBER() OVER (ORDER BY T2.DATE_KEY, T2.GEO_KEY, T2.DOMAIN_NAME, T2.SUBDOMAIN_1_NAME, T2.SUBDOMAIN_2_NAME, T2.SUBDOMAIN_3_NAME, T2.METRIC_NAME)) AS INDICATOR_KEY,
+		  T2.DATE_KEY,
+		  T2.DATE_GRANULARITY,
+		  T2.GEO_KEY,
+		  T2.GEO_GRANULARITY,
+		  T2.DOMAIN_NAME,
+		  T2.SUBDOMAIN_1_NAME,
+		  T2.SUBDOMAIN_2_NAME,
+		  T2.SUBDOMAIN_3_NAME,
+		  T2.METRIC_NAME,
+		  T2.METRIC_VALUE,
+		  0 AS METRIC_INDEX,
+		  T2.DATA_SOURCE_NAME,
+		  T2.DATA_SOURCE_DESC,
+		  CURRENT_TIMESTAMP(0) AS REC_INS_TS,
+		  CURRENT_TIMESTAMP(0) AS REC_UPD_TS,
+		  CASE WHEN F.INDICATOR_KEY IS NULL
+		       THEN 'I'
+	    	   WHEN F.INDICATOR_KEY IS NOT NULL AND F.METRIC_VALUE <> T2.METRIC_VALUE
+			   THEN 'U'
+		       ELSE 'P'
+		  END AS INS_UPD_FLAG
+	FROM
+                    ( SELECT 
+		                  T1.DATE_KEY,
+                          'Day'  AS DATE_GRANULARITY,
+                          GK.UID AS GEO_KEY,
+                          T1.GEO_GRANULARITY,
+                          'Covid19 NYT'  DOMAIN_NAME,
+                          ' ' SUBDOMAIN_1_NAME,
+                          ' ' SUBDOMAIN_2_NAME,
+                          ' ' SUBDOMAIN_3_NAME,
+                          T1.CASES,
+						  T1.DAILY_NEW_CASES,
+		                  T1.DEATHS,
+						  T1.DAILY_NEW_DEATHS,
+                          'New York Times Covid cases/deaths reporting' AS DATA_SOURCE_NAME,
+                          'New York Times Covid cases/deaths reporting' AS DATA_SOURCE_DESC  
+                      FROM
+                            (
+                               SELECT 
+                                     COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD')) AS DATE_KEY,
+                                     CASE WHEN COALESCE(M.COUNTY,S.COUNTY) = 'Unknown'
+                                          THEN 'STATE'
+                                          ELSE COALESCE(M.GEO_GRANULARITY,'COUNTY')
+                                     END AS GEO_GRANULARITY,
+                                     COALESCE(M.COUNTY,S.COUNTY) AS COUNTY,
+                                     MIN(COALESCE(M.STATE_CODE,'ZZ')) OVER (PARTITION BY COALESCE(M.STATE_NAME,S.STATE) ORDER BY M.STATE_CODE) AS STATE_CODE,
+                                     COALESCE(M.STATE_NAME,S.STATE) AS STATE_NAME,
+				                     COALESCE(S.CASES,0) AS CASES,
+									 COALESCE(COALESCE(S.CASES - LAG(S.CASES,1) OVER (PARTITION BY COALESCE(M.COUNTY,S.COUNTY),COALESCE(M.STATE_NAME,S.STATE) 
+									                                                  ORDER BY COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD'))),S.CASES -1),0) AS DAILY_NEW_CASES,
+                                     COALESCE(S.DEATHS,0) AS DEATHS,
+									 COALESCE(COALESCE(S.DEATHS - LAG(S.DEATHS,1) OVER (PARTITION BY COALESCE(M.COUNTY,S.COUNTY),COALESCE(M.STATE_NAME,S.STATE) 
+									                                                    ORDER BY COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD'))),S.DEATHS-1),0) AS DAILY_NEW_DEATHS
+                               FROM
+                                (
+                                  SELECT 
+                                     DT.CAL_DATE_KEY,
+                                     GC.UID AS GEO_KEY,
+                                     GC.GEO_GRANULARITY,
+                                     GC.COUNTY, 
+                                     GC.COUNTY_LONG,
+                                     GC.STATE_CODE,
+                                     GC.STATE_NAME 
+                                  FROM 
+                                     ???.DIM_GEO_LOCATION_V GC
+                                     JOIN ???.DIM_CALENDAR_V DT ON
+                                     DT.CAL_DATE_KEY BETWEEN (SELECT MIN(DATE_KEY) FROM ???.STG_COVID19_STATS) AND (SELECT MAX(DATE_KEY) FROM ???.STG_COVID19_STATS) AND
+                                     GC.GEO_GRANULARITY = 'COUNTY' AND 
+                                     GC.COUNTRY_CODE    = 'US'
+                                ) M
+                                FULL OUTER JOIN
+                                (
+                                   SELECT 
+                                      DATE_KEY,
+                                      CASE WHEN COUNTY = 'New York City'
+					                       THEN 'New York'
+						                   ELSE COUNTY
+				                      END AS COUNTY,             -- New York City is a combination of 5 counties - it will be loaded to NY County and corrected later
+                                      STATE,
+                                      CASES,
+                                      DEATHS
+                                   FROM 
+                                     ???.STG_COVID19_STATS
+                                   WHERE 
+                                     DATE_KEY BETWEEN (SELECT MIN(DATE_KEY) FROM ???.STG_COVID19_STATS) AND (SELECT MAX(DATE_KEY) FROM ???.STG_COVID19_STATS)
+                                 ) S ON 
+                                 S.DATE_KEY = M.CAL_DATE_KEY AND
+                                 S.COUNTY IN (M.COUNTY, M.COUNTY_LONG) AND
+                                 S.STATE    = M.STATE_NAME
+                            ) T1     
+                            JOIN ???.DIM_GEO_LOCATION_V GK ON
+                            T1.GEO_GRANULARITY = GK.GEO_GRANULARITY AND
+                            T1.STATE_NAME      = GK.STATE_NAME AND 
+                            T1.COUNTY          = COALESCE(GK.COUNTY,'Unknown')	
+							--WHERE T1.DATE_KEY >= CURRENT_DATE -29  -- for incremental loads, need to filter first date because the daily new cases/deaths calculation is incorrect
+                    )  NYT 
+             UNPIVOT ((METRIC_VALUE)  FOR  METRIC_NAME 
+                                      IN ((CASES)  AS 'Cases to-date', 
+									      (DAILY_NEW_CASES) AS 'New Daily Cases',
+                                          (DEATHS) AS 'Deaths to-date',
+										  (DAILY_NEW_DEATHS) AS 'New Daily Deaths'
+										 )
+		             )  T2
+		 LEFT OUTER JOIN ???.FACT_INDICATOR_DASHBOARD_V F ON
+		         T2.DATE_KEY         = F.DATE_KEY             AND
+		         T2.DATE_GRANULARITY = F.DATE_GRANULARITY     AND
+		         T2.GEO_KEY          = F.GEO_KEY              AND
+		         T2.GEO_GRANULARITY  = F.GEO_GRANULARITY      AND
+		         T2.DOMAIN_NAME      = F.DOMAIN_NAME          AND
+                 T2.SUBDOMAIN_1_NAME = F.SUBDOMAIN_1_NAME     AND
+                 T2.SUBDOMAIN_2_NAME = F.SUBDOMAIN_2_NAME     AND
+                 T2.SUBDOMAIN_3_NAME = F.SUBDOMAIN_3_NAME     AND
+		         T2.METRIC_NAME      = F.METRIC_NAME
+		 LEFT OUTER JOIN (SELECT ZEROIFNULL(MAX(INDICATOR_KEY)) AS MAX_ID
+		                  FROM ???.FACT_INDICATOR_DASHBOARD_V) MAXKEY ON 
+		          1=1
+ 	     WHERE
+            INS_UPD_FLAG IN ('I','U')	
+  )  STG ON  
+STG.INDICATOR_KEY = TGT.INDICATOR_KEY AND
+STG.DATE_KEY      = TGT.DATE_KEY
 WHEN NOT MATCHED THEN 
-insert  
-(   	      	
-   	 date_key,
-    GEO_KEY,
-     TESTCNT,
-    confirmed_CNT,
-    recovered_CNT,
-     deaths_CNT,
-     HOSPITALIZED_CNT,
-     ON_VENTILATOR_CNT,
-     IN_ICU_CNT,
-     SEVERE_CASE_CNT,
-     population  ,
-      school_closing  ,
-     workplace_closing  ,
-     cancel_events  ,
-      gatherings_restrictions  ,
-     transport_closing  ,
-     stay_home_restrictions  ,
-     internal_movement_restrictions  ,
-     international_movement_restrictions  ,
-     information_campaigns  ,
-     testing_policy  ,
-     contact_tracing  ,
-     stringency_index  ,
-     key_STR,
-     key_numeric,
-     key_google_mobility,
-     key_apple_mobility,
-     key_alpha_2, 
-     REC_INS_TS   ) 
-values ( 
-		   	
-   	source.date_key,
-    source.GEO_KEY,
-    source.TEST_CNT,
-    source.confirmed_CNT,
-    source.recovered_CNT,
-    source.deaths_CNT,
-    source.HOSPITALIZED_CNT,
-    source.ON_VENTILATOR_CNT,
-    source.IN_ICU_CNT,
-    source.SEVERE_CASE_CNT,
-    source.population  ,
-    source.school_closing  ,
-    source.workplace_closing  ,
-    source.cancel_events  ,
-    source.gatherings_restrictions  ,
-    source.transport_closing  ,
-    source.stay_home_restrictions  ,
-    source.internal_movement_restrictions  ,
-    source.international_movement_restrictions  ,
-    source.information_campaigns  ,
-    source.testing_policy  ,
-    source.contact_tracing  ,
-    source.stringency_index  ,
-    source.key_STR,
-    source.key_numeric,
-    source.key_google_mobility,
-    source.key_apple_mobility,
-    source.key_alpha_2, 
-    source.REC_INS_TS )
-     when matched then
- update 
- set   	TESTCNT = source.TEST_CNT
-       	,confirmed_CNT = source.confirmed_CNT
-    	,recovered_CNT = source.recovered_CNT
-     	,deaths_CNT = source.deaths_CNT
-     	,HOSPITALIZED_CNT = source.HOSPITALIZED_CNT
-     	,ON_VENTILATOR_CNT = source.ON_VENTILATOR_CNT
-     	,IN_ICU_CNT = source.IN_ICU_CNT
-     	,SEVERE_CASE_CNT  = source.SEVERE_CASE_CNT
-     	;
+INSERT
+  (       
+    INDICATOR_KEY,     
+    DATE_KEY,
+    DATE_GRANULARITY,
+    GEO_KEY, 
+    GEO_GRANULARITY,
+    DOMAIN_NAME,
+    SUBDOMAIN_1_NAME,
+    SUBDOMAIN_2_NAME,
+    SUBDOMAIN_3_NAME,
+    METRIC_NAME,
+    METRIC_VALUE,
+    METRIC_INDEX,
+    DATA_SOURCE_NAME,
+    DATA_SOURCE_DESC,
+    REC_INS_TS,
+    REC_UPD_TS  
+   )  VALUES 
+   (    
+    STG.INDICATOR_KEY,      
+    STG.DATE_KEY,
+    STG.DATE_GRANULARITY,
+    STG.GEO_KEY, 
+    STG.GEO_GRANULARITY,
+    STG.DOMAIN_NAME,
+    STG.SUBDOMAIN_1_NAME,
+    STG.SUBDOMAIN_2_NAME,
+    STG.SUBDOMAIN_3_NAME,
+    STG.METRIC_NAME,
+    STG.METRIC_VALUE,
+    STG.METRIC_INDEX,
+    STG.DATA_SOURCE_NAME,
+    STG.DATA_SOURCE_DESC,
+    STG.REC_INS_TS,
+    STG.REC_UPD_TS   
+  )
+WHEN MATCHED THEN
+UPDATE SET 
+    METRIC_VALUE  = STG.METRIC_VALUE,
+    METRIC_INDEX  = STG.METRIC_INDEX,
+    REC_UPD_TS    = STG.REC_UPD_TS ;
 	
-
+	
+	
+	
+UPDATE ???.FACT_INDICATOR_DASHBOARD_T2_P
+FROM (
+SELECT
+   F.INDICATOR_KEY,
+   F.DATE_KEY,
+   F.GEO_KEY,
+   G.POPULATION,
+   G.STATE_CODE,
+   F.DOMAIN_NAME,
+   F.METRIC_NAME,
+   F.METRIC_VALUE,
+   SUM(F.METRIC_VALUE) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE) AS TOT_METRIC_VALUE,
+   SUM(G.POPULATION) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME, G.STATE_CODE) AS TOT_POPULATION,
+   (SUM(F.METRIC_VALUE) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE) * 
+    CAST(G.POPULATION AS DECIMAL(38,6))/SUM(G.POPULATION) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE)) AS NEW_METRIC_VALUE
+FROM
+   ???.FACT_INDICATOR_DASHBOARD_V F
+   JOIN ???.DIM_GEO_LOCATION_V G ON
+   F.GEO_KEY = G.UID
+WHERE
+   F.DOMAIN_NAME = 'Covid19 NYT' AND
+   F.GEO_KEY IN (84070003,84029037,84029047,84029095,84029165,84036061,84036005,84036047,84036081,84036085) AND
+   F.DATE_KEY BETWEEN CURRENT_DATE -30 AND CURRENT_DATE
+) AS SRC
+SET METRIC_VALUE = SRC.NEW_METRIC_VALUE,
+    REC_UPD_TS      = CURRENT_TIMESTAMP(0)
+WHERE 
+   FACT_INDICATOR_DASHBOARD_T2_P.INDICATOR_KEY = SRC.INDICATOR_KEY;
+      
+END IF;
+	
+-----------------------------------------------------------
 SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
-
-
---LVL2 Changes
-MERGE INTO ???.FACT_COVID19_DATAHUB_STATE as target
-USING    
- ( select x.PROCESS_TYPE,      	
-   	x.date_key,
-    x.GEO_KEY,
-    x.TESTED_CNT,
-    x.confirmed_CNT,
-    x.recovered_CNT,
-    x.death_CNT,
-    x.HOSPITALIZED_CNT,
-    x.ON_VENTILATOR_CNT,
-    x.IN_ICU_CNT,
-    x.SEVERE_CASE_CNT,
-    x.population  ,
-    x.school_closing  ,
-    x.workplace_closing  ,
-    x.cancel_events  ,
-    x.gatherings_restrictions  ,
-    x.transport_closing  ,
-    x.stay_home_restrictions  ,
-    x.internal_movement_restrictions  ,
-    x.international_movement_restrictions  ,
-    x.information_campaigns  ,
-    x.testing_policy  ,
-    x.contact_tracing  ,
-    x.stringency_index  ,
-    x.key_STR,
-    x.key_numeric,
-    x.key_google_mobility,
-    x.key_apple_mobility,
-    x.key_alpha_2, 
-    x.REC_INS_TS 
-   --select *  
-from  
-  
-  (
-  
- select  a.date_key,
-    a.GEO_KEY,
-    a.TESTED_CNT,
-    a.confirmed_CNT,
-    a.recovered_CNT,
-    a.death_CNT,
-    a.HOSPITALIZED_CNT,
-    a.ON_VENTILATOR_CNT,
-    a.IN_ICU_CNT,
-    a.SEVERE_CASE_CNT,
-    a.population  ,
-    a.school_closing  ,
-    a.workplace_closing  ,
-    a.cancel_events  ,
-    a.gatherings_restrictions  ,
-    a.transport_closing  ,
-    a.stay_home_restrictions  ,
-    a.internal_movement_restrictions  ,
-    a.international_movement_restrictions  ,
-    a.information_campaigns  ,
-    a.testing_policy  ,
-    a.contact_tracing  ,
-    a.stringency_index  ,
-    a.key_STR,
-    a.key_numeric,
-    a.key_google_mobility,
-    a.key_apple_mobility,
-    a.key_alpha_2, 
-    a.REC_INS_TS ,
- 
-    CASE
-          WHEN b.date_KEY IS NULL
-                 THEN 'I'
-          WHEN b.date_KEY is not null  
-          and ( a.TESTED_CNT <> b.TESTED_CNT or
-                a.confirmed_CNT <> b.confirmed_CNT or
-    			a.recovered_CNT <> b.recovered_CNT or
-    			a.HOSPITALIZED_CNT <> b.HOSPITALIZED_CNT or
-    			a.death_CNT <> b.death_CNT  or
-   				a.ON_VENTILATOR_CNT <> b.ON_VENTILATOR_CNT or
-    			a.IN_ICU_CNT <> b.IN_ICU_CNT or
-    			a.SEVERE_CASE_CNT <> b.SEVERE_CASE_CNT )
-                -- put weird logic here
-                 THEN 'U'
-          ELSE NULL
-                     END AS PROCESS_TYPE
-                     
-                     --select *
-    from (
-
-
-SELECT 
-   cast ( date_key as date) date_key,
-    UID GEO_KEY,
-    tests TESTED_CNT,
-    confirmed confirmed_CNT,
-    recovered recovered_CNT,
-    deaths death_CNT,
-    hosp HOSPITALIZED_CNT,
-    vent  ON_VENTILATOR_CNT,
-    icu IN_ICU_CNT, 
-	-- 07/17/20 Changes
-    0 SEVERE_CASE_CNT,
-	-- End of Changes 
-    l2.population  ,
-    school_closing  ,
-    workplace_closing  ,
-    cancel_events  ,
-    gatherings_restrictions  ,
-    transport_closing  ,
-    stay_home_restrictions  ,
-    internal_movement_restrictions  ,
-    international_movement_restrictions  ,
-    information_campaigns  ,
-    testing_policy  ,
-    contact_tracing  ,
-    stringency_index  ,
-    "key" key_STR,
-    key_numeric,
-    key_google_mobility,
-    key_apple_mobility,
-    key_alpha_2 ,
- 	current_timestamp(0) REC_INS_TS
- 	--select min(date_key)
-from ???.STG_COVID19_Datahub_LVL2 l2 
-      left outer join ???.DIM_GEO_LOCATION_V g
-		on l2.administrative_area_level_2   =  g.state_name  
-		where g.uid is not null 
-		and g.geo_granularity = 'State') a
- 
-        LEFT OUTER JOIN ???.FACT_COVID19_DATAHUB_STATE_v b
-           ON   a.DATE_KEY = b.DATE_KEY 
-           and a.GEO_key = b.GEO_key 
-       
-                ) AS x
-WHERE x.PROCESS_TYPE  IS NOT NULL 
-         
-)  as source
-  
-
--- join on primary key is obligatory
-
-ON  source.date_key = target.date_key
- and source.GEO_KEY = target.GEO_KEY
---WHEN MATCHED THEN UPDATE
---SET product_status  = source.product_status
+-----------------------------------------------------------
+   
+-- Incremental Load
+-- 07.29.20 Changes
+MERGE INTO ???.FACT_INDICATOR_DASHBOARD_T2_P AS TGT
+USING  
+  ( 
+    SELECT 
+		  COALESCE(F.INDICATOR_KEY, MAXKEY.MAX_ID + ROW_NUMBER() OVER (ORDER BY T2.DATE_KEY, T2.GEO_KEY, T2.DOMAIN_NAME, T2.SUBDOMAIN_1_NAME, T2.SUBDOMAIN_2_NAME, T2.SUBDOMAIN_3_NAME, T2.METRIC_NAME)) AS INDICATOR_KEY,
+		  T2.DATE_KEY,
+		  T2.DATE_GRANULARITY,
+		  T2.GEO_KEY,
+		  T2.GEO_GRANULARITY,
+		  T2.DOMAIN_NAME,
+		  T2.SUBDOMAIN_1_NAME,
+		  T2.SUBDOMAIN_2_NAME,
+		  T2.SUBDOMAIN_3_NAME,
+		  T2.METRIC_NAME,
+		  T2.METRIC_VALUE,
+		  0 AS METRIC_INDEX,
+		  T2.DATA_SOURCE_NAME,
+		  T2.DATA_SOURCE_DESC,
+		  CURRENT_TIMESTAMP(0) AS REC_INS_TS,
+		  CURRENT_TIMESTAMP(0) AS REC_UPD_TS,
+		  CASE WHEN F.INDICATOR_KEY IS NULL
+		       THEN 'I'
+	    	   WHEN F.INDICATOR_KEY IS NOT NULL AND F.METRIC_VALUE <> T2.METRIC_VALUE
+			   THEN 'U'
+		       ELSE 'P'
+		  END AS INS_UPD_FLAG
+	FROM
+                    ( SELECT 
+		                  T1.DATE_KEY,
+                          'Day'  AS DATE_GRANULARITY,
+                          GK.UID AS GEO_KEY,
+                          T1.GEO_GRANULARITY,
+                          'Covid19 NYT'  DOMAIN_NAME,
+                          ' ' SUBDOMAIN_1_NAME,
+                          ' ' SUBDOMAIN_2_NAME,
+                          ' ' SUBDOMAIN_3_NAME,
+                          T1.CASES,
+						  T1.DAILY_NEW_CASES,
+		                  T1.DEATHS,
+						  T1.DAILY_NEW_DEATHS,
+                          'New York Times Covid cases/deaths reporting' AS DATA_SOURCE_NAME,
+                          'New York Times Covid cases/deaths reporting' AS DATA_SOURCE_DESC  
+                      FROM
+                            (
+                               SELECT 
+                                     COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD')) AS DATE_KEY,
+                                     CASE WHEN COALESCE(M.COUNTY,S.COUNTY) = 'Unknown'
+                                          THEN 'STATE'
+                                          ELSE COALESCE(M.GEO_GRANULARITY,'COUNTY')
+                                     END AS GEO_GRANULARITY,
+                                     COALESCE(M.COUNTY,S.COUNTY) AS COUNTY,
+                                     MIN(COALESCE(M.STATE_CODE,'ZZ')) OVER (PARTITION BY COALESCE(M.STATE_NAME,S.STATE) ORDER BY M.STATE_CODE) AS STATE_CODE,
+                                     COALESCE(M.STATE_NAME,S.STATE) AS STATE_NAME,
+				                     COALESCE(S.CASES,0) AS CASES,
+									 COALESCE(COALESCE(S.CASES - LAG(S.CASES,1) OVER (PARTITION BY COALESCE(M.COUNTY,S.COUNTY),COALESCE(M.STATE_NAME,S.STATE) 
+									                                                  ORDER BY COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD'))),S.CASES -1),0) AS DAILY_NEW_CASES,
+                                     COALESCE(S.DEATHS,0) AS DEATHS,
+									 COALESCE(COALESCE(S.DEATHS - LAG(S.DEATHS,1) OVER (PARTITION BY COALESCE(M.COUNTY,S.COUNTY),COALESCE(M.STATE_NAME,S.STATE) 
+									                                                    ORDER BY COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD'))),S.DEATHS-1),0) AS DAILY_NEW_DEATHS
+                               FROM
+                                (
+                                  SELECT 
+                                     DT.CAL_DATE_KEY,
+                                     GC.UID AS GEO_KEY,
+                                     GC.GEO_GRANULARITY,
+                                     GC.COUNTY, 
+                                     GC.COUNTY_LONG,
+                                     GC.STATE_CODE,
+                                     GC.STATE_NAME 
+                                  FROM 
+                                     ???.DIM_GEO_LOCATION_V GC
+                                     JOIN ???.DIM_CALENDAR_V DT ON
+                                     DT.CAL_DATE_KEY BETWEEN CURRENT_DATE -30 AND (SELECT MAX(DATE_KEY) FROM ???.STG_COVID19_STATS) AND
+                                     GC.GEO_GRANULARITY = 'COUNTY' AND 
+                                     GC.COUNTRY_CODE    = 'US'
+                                ) M
+                                FULL OUTER JOIN
+                                (
+                                   SELECT 
+                                      DATE_KEY,
+                                      CASE WHEN COUNTY = 'New York City'
+					                       THEN 'New York'
+						                   ELSE COUNTY
+				                      END AS COUNTY,             -- New York City is a combination of 5 counties - it will be loaded to NY County and corrected later
+                                      STATE,
+                                      CASES,
+                                      DEATHS
+                                   FROM 
+                                     ???.STG_COVID19_STATS
+                                   WHERE 
+                                     DATE_KEY BETWEEN CURRENT_DATE-30 AND (SELECT MAX(DATE_KEY) FROM ???.STG_COVID19_STATS)
+                                 ) S ON 
+                                 S.DATE_KEY = M.CAL_DATE_KEY AND
+                                 S.COUNTY IN (M.COUNTY, M.COUNTY_LONG) AND
+                                 S.STATE    = M.STATE_NAME
+                            ) T1     
+                            JOIN ???.DIM_GEO_LOCATION_V GK ON
+                            T1.GEO_GRANULARITY = GK.GEO_GRANULARITY AND
+                            T1.STATE_NAME      = GK.STATE_NAME AND 
+                            T1.COUNTY          = COALESCE(GK.COUNTY,'Unknown')	
+							WHERE T1.DATE_KEY >= CURRENT_DATE -29  -- for incremental loads, need to filter first date because the daily new cases/deaths calculation is incorrect
+                    )  NYT 
+             UNPIVOT ((METRIC_VALUE)  FOR  METRIC_NAME 
+                                      IN ((CASES)  AS 'Cases to-date', 
+									      (DAILY_NEW_CASES) AS 'New Daily Cases',
+                                          (DEATHS) AS 'Deaths to-date',
+										  (DAILY_NEW_DEATHS) AS 'New Daily Deaths'
+										 )
+		             )  T2
+		 LEFT OUTER JOIN ???.FACT_INDICATOR_DASHBOARD_V F ON
+		         T2.DATE_KEY         = F.DATE_KEY             AND
+		         T2.DATE_GRANULARITY = F.DATE_GRANULARITY     AND
+		         T2.GEO_KEY          = F.GEO_KEY              AND
+		         T2.GEO_GRANULARITY  = F.GEO_GRANULARITY      AND
+		         T2.DOMAIN_NAME      = F.DOMAIN_NAME          AND
+                 T2.SUBDOMAIN_1_NAME = F.SUBDOMAIN_1_NAME     AND
+                 T2.SUBDOMAIN_2_NAME = F.SUBDOMAIN_2_NAME     AND
+                 T2.SUBDOMAIN_3_NAME = F.SUBDOMAIN_3_NAME     AND
+		         T2.METRIC_NAME      = F.METRIC_NAME
+		 LEFT OUTER JOIN (SELECT ZEROIFNULL(MAX(INDICATOR_KEY)) AS MAX_ID
+		                  FROM ???.FACT_INDICATOR_DASHBOARD_V) MAXKEY ON 
+		          1=1
+ 	     WHERE
+            INS_UPD_FLAG IN ('I','U')	
+  )  STG ON  
+STG.INDICATOR_KEY = TGT.INDICATOR_KEY AND
+STG.DATE_KEY      = TGT.DATE_KEY
 WHEN NOT MATCHED THEN 
-insert  
-(   	      	
-   	 date_key,
-    GEO_KEY,
-     TESTED_CNT,
-    confirmed_CNT,
-    recovered_CNT,
-     death_CNT,
-     HOSPITALIZED_CNT,
-     ON_VENTILATOR_CNT,
-     IN_ICU_CNT,
-     SEVERE_CASE_CNT,
-     population  ,
-      school_closing  ,
-     workplace_closing  ,
-     cancel_events  ,
-      gatherings_restrictions  ,
-     transport_closing  ,
-     stay_home_restrictions  ,
-     internal_movement_restrictions  ,
-     international_movement_restrictions  ,
-     information_campaigns  ,
-     testing_policy  ,
-     contact_tracing  ,
-     stringency_index  ,
-     key_STR,
-     key_numeric,
-     key_google_mobility,
-     key_apple_mobility,
-     key_alpha_2, 
-     REC_INS_TS   ) 
-values ( 
-		   	
-   	source.date_key,
-    source.GEO_KEY,
-    source.TESTED_CNT,
-    source.confirmed_CNT,
-    source.recovered_CNT,
-    source.death_CNT,
-    source.HOSPITALIZED_CNT,
-    source.ON_VENTILATOR_CNT,
-    source.IN_ICU_CNT,
-    source.SEVERE_CASE_CNT,
-    source.population  ,
-    source.school_closing  ,
-    source.workplace_closing  ,
-    source.cancel_events  ,
-    source.gatherings_restrictions  ,
-    source.transport_closing  ,
-    source.stay_home_restrictions  ,
-    source.internal_movement_restrictions  ,
-    source.international_movement_restrictions  ,
-    source.information_campaigns  ,
-    source.testing_policy  ,
-    source.contact_tracing  ,
-    source.stringency_index  ,
-    source.key_STR,
-    source.key_numeric,
-    source.key_google_mobility,
-    source.key_apple_mobility,
-    source.key_alpha_2, 
-    source.REC_INS_TS )
-     when matched then
- update 
- set   	TESTED_CNT = source.TESTED_CNT
-       	,confirmed_CNT = source.confirmed_CNT
-    	,recovered_CNT = source.recovered_CNT
-     	,death_CNT = source.death_CNT
-     	,HOSPITALIZED_CNT = source.HOSPITALIZED_CNT
-     	,ON_VENTILATOR_CNT = source.ON_VENTILATOR_CNT
-     	,IN_ICU_CNT = source.IN_ICU_CNT
-     	,SEVERE_CASE_CNT  = source.SEVERE_CASE_CNT;
+INSERT
+  (       
+    INDICATOR_KEY,     
+    DATE_KEY,
+    DATE_GRANULARITY,
+    GEO_KEY, 
+    GEO_GRANULARITY,
+    DOMAIN_NAME,
+    SUBDOMAIN_1_NAME,
+    SUBDOMAIN_2_NAME,
+    SUBDOMAIN_3_NAME,
+    METRIC_NAME,
+    METRIC_VALUE,
+    METRIC_INDEX,
+    DATA_SOURCE_NAME,
+    DATA_SOURCE_DESC,
+    REC_INS_TS,
+    REC_UPD_TS  
+   )  VALUES 
+   (    
+    STG.INDICATOR_KEY,      
+    STG.DATE_KEY,
+    STG.DATE_GRANULARITY,
+    STG.GEO_KEY, 
+    STG.GEO_GRANULARITY,
+    STG.DOMAIN_NAME,
+    STG.SUBDOMAIN_1_NAME,
+    STG.SUBDOMAIN_2_NAME,
+    STG.SUBDOMAIN_3_NAME,
+    STG.METRIC_NAME,
+    STG.METRIC_VALUE,
+    STG.METRIC_INDEX,
+    STG.DATA_SOURCE_NAME,
+    STG.DATA_SOURCE_DESC,
+    STG.REC_INS_TS,
+    STG.REC_UPD_TS   
+  )
+WHEN MATCHED THEN
+UPDATE SET 
+    METRIC_VALUE  = STG.METRIC_VALUE,
+    METRIC_INDEX  = STG.METRIC_INDEX,
+    REC_UPD_TS    = STG.REC_UPD_TS ;
+	
+	
+-----------------------------------------------------------
+SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
+-----------------------------------------------------------	
+
+	
+UPDATE ???.FACT_INDICATOR_DASHBOARD_T2_P
+FROM (
+SELECT
+   F.INDICATOR_KEY,
+   F.DATE_KEY,
+   F.GEO_KEY,
+   G.POPULATION,
+   G.STATE_CODE,
+   F.DOMAIN_NAME,
+   F.METRIC_NAME,
+   F.METRIC_VALUE,
+   SUM(F.METRIC_VALUE) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE) AS TOT_METRIC_VALUE,
+   SUM(G.POPULATION) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME, G.STATE_CODE) AS TOT_POPULATION,
+   (SUM(F.METRIC_VALUE) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE) * 
+    CAST(G.POPULATION AS DECIMAL(38,6))/SUM(G.POPULATION) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE)) AS NEW_METRIC_VALUE
+FROM
+   ???.FACT_INDICATOR_DASHBOARD_V F
+   JOIN ???.DIM_GEO_LOCATION_V G ON
+   F.GEO_KEY = G.UID
+WHERE
+   F.DOMAIN_NAME = 'Covid19 NYT' AND
+   F.GEO_KEY IN (84070003,84029037,84029047,84029095,84029165,84036061,84036005,84036047,84036081,84036085) AND
+   F.DATE_KEY BETWEEN CURRENT_DATE -30 AND CURRENT_DATE
+) AS SRC
+SET METRIC_VALUE = SRC.NEW_METRIC_VALUE,
+    REC_UPD_TS      = CURRENT_TIMESTAMP(0)
+WHERE 
+   FACT_INDICATOR_DASHBOARD_T2_P.INDICATOR_KEY = SRC.INDICATOR_KEY;
+   
+   
+ 
+-----------------------------------------------------------
+SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
+-----------------------------------------------------------	
+
+
+-- 072120 Added Moving Average Physical Tables
+DELETE FROM ???.F_IND_DASH_NYT_COVID19_GEO_7MAVG_WEEKLY_SNPSHT;
+INSERT INTO ???.F_IND_DASH_NYT_COVID19_GEO_7MAVG_WEEKLY_SNPSHT
+SELECT
+  SNAPSHOT_DATE,
+  SNAPSHOT_WEEK,
+  CURR_PREV_FLAG,
+  RANK() OVER (PARTITION BY GEO_KEY, CURR_PREV_FLAG ORDER BY DATE_KEY ASC) CAL_DAY_OF_WEEK,
+  GEO_KEY,
+  GEO_GRANULARITY,
+  COUNTY,
+  STATE_CODE,
+  STATE_NAME,
+  COUNTRY_NAME,
+  POPULATION,
+  DATE_KEY,
+  CASES_TODATE,
+  NEW_CASES,
+  DEATHS_TODATE,
+  NEW_DEATHS,
+  DENSE_RANK() OVER (PARTITION BY COUNTRY_NAME ORDER BY POPULATION DESC) AS COUNTY_POP_RNK,
+  CAST(AVG(CASES_TODATE) OVER (PARTITION BY COUNTY, STATE_NAME ORDER BY DATE_KEY DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING) AS DECIMAL(38,5)) AS CASES_TODATE_7MAVG,
+  CAST(AVG(NEW_CASES) OVER (PARTITION BY COUNTY, STATE_NAME ORDER BY DATE_KEY DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING) AS DECIMAL(38,5)) AS NEW_CASES_7MAVG,
+  CAST(AVG(DEATHS_TODATE) OVER (PARTITION BY COUNTY, STATE_NAME ORDER BY DATE_KEY DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING) AS DECIMAL(38,5)) AS DEATHS_TODATE_7MAVG,
+  CAST(AVG(NEW_DEATHS) OVER (PARTITION BY COUNTY, STATE_NAME ORDER BY DATE_KEY DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING) AS DECIMAL(38,5)) AS NEW_DEATHS_7MAVG
+ FROM
+  (
+    SELECT 
+          DT.SNAPSHOT_DATE,
+          DT.SNAPSHOT_WEEK,
+          CASE WHEN F.DATE_KEY BETWEEN DT.WEEK_START_DATE AND DT.WEEK_END_DATE
+               THEN DT.CURR_PREV_FLAG
+          END AS CURR_PREV_FLAG,
+          F.GEO_KEY,
+          UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
+          G.COUNTY, 
+          G.STATE_CODE,
+          G.STATE_NAME,
+          G.COUNTRY_NAME,
+          G.POPULATION,
+          F.DATE_KEY,
+          SUM(CASE WHEN UPPER(F.METRIC_NAME) = 'CASES TO-DATE'
+                   THEN METRIC_VALUE
+          END) AS CASES_TODATE,
+          SUM(CASE WHEN UPPER(F.METRIC_NAME) = 'NEW DAILY CASES'
+                   THEN METRIC_VALUE
+              END) AS NEW_CASES,
+          SUM(CASE WHEN UPPER(F.METRIC_NAME) = 'DEATHS TO-DATE'
+                   THEN METRIC_VALUE
+          END) AS DEATHS_TODATE,
+          SUM(CASE WHEN UPPER(F.METRIC_NAME) = 'NEW DAILY DEATHS'
+                   THEN METRIC_VALUE
+              END) AS NEW_DEATHS
+    FROM 
+      ???.FACT_INDICATOR_DASHBOARD_V F 
+      JOIN ???.DIM_GEO_LOCATION_V G ON
+      F.GEO_KEY = G.UID
+      JOIN (SELECT 
+       		MAX(WEEK_END_DATE) OVER () AS SNAPSHOT_DATE,
+       		MAX(CAL_WEEK_YEAR) OVER () AS SNAPSHOT_WEEK,
+       		MIN(WEEK_START_DATE) OVER () AS FIL_START_DATE_KEY,
+       		MAX(WEEK_END_DATE) OVER () FIL_END_DATE_KEY,
+       		CASE WHEN RNK =1 THEN 'CURR'
+            	 WHEN RNK =2 THEN 'PREV'
+            	 WHEN RNK =3 THEN 'PREV-1'
+            	 WHEN RNK =4 THEN 'PREV-2'
+				 WHEN RNK =5 THEN 'PREV-3'
+            	 ELSE 'PREV-4'
+       		END CURR_PREV_FLAG,
+       		RANK() OVER (ORDER BY WEEK_END_DATE DESC) RNK,
+       		DT.*
+    	   FROM 
+            ???.DIM_CALENDAR_V DT
+			LEFT JOIN (
+                       SELECT MAX(DATE_KEY) MAX_DT
+                       FROM ???.FACT_INDICATOR_DASHBOARD_V F  
+                       JOIN ???.DIM_GEO_LOCATION_V G ON
+                            F.GEO_KEY = G.UID
+                       WHERE F.DOMAIN_NAME = 'Covid19 NYT' AND  
+                             F.GEO_GRANULARITY = 'COUNTY'
+                      ) MAXDT ON 1=1
+           WHERE CAL_DATE_KEY IN (MAX_DT-7,MAX_DT-14,MAX_DT-21,MAX_DT-28, MAX_DT-35, MAX_DT-42)
+          ) DT ON
+       F.DATE_KEY BETWEEN DT.FIL_START_DATE_KEY AND DT.FIL_END_DATE_KEY
+    WHERE 
+      F.DOMAIN_NAME = 'Covid19 NYT' AND 
+      F.GEO_GRANULARITY = 'COUNTY'  AND
+      CASE WHEN F.DATE_KEY BETWEEN DT.WEEK_START_DATE AND DT.WEEK_END_DATE
+           THEN DT.CURR_PREV_FLAG
+      END IN ('CURR','PREV','PREV-1','PREV-2','PREV-3')
+     GROUP BY 1,2,3,4,5,6,7,8,9,10,11
+   ) T;
  
 /******************************************************************/
 --End of Transformation Logic
@@ -4579,6 +4819,7 @@ SET v_RowCnt = v_RecordsAffected;
 INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v_RecordsAffected,current_timestamp(0));
 	
 END;
+
 
 
 REPLACE PROCEDURE ???.ETL_COVID_MODEL_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
@@ -4609,25 +4850,16 @@ DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_Covid_Model_Data';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_COVID_MODEL_CORE';
 DECLARE v_Date_Key_Val VARCHAR(30);
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -5243,52 +5475,43 @@ INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v
 END;
 
 
-REPLACE PROCEDURE ???.ETL_COVID_MODEL_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
+
+REPLACE PROCEDURE ???.ETL_COVID19_DATAHUB_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
 /*********************************************************************************************************/
 /* 
-Procedure Name    : ETL_COVID_MODEL_CORE                                              		
+Procedure Name    : ETL_COVID19_DATAHUB_CORE                                              		
 Developed By      : Teradata Team                                                                            			  
-Created           : June 26, 2020 			                                                                           		     
-Description       : This Procecdure is used to Upcert FACT_Covid_Model_Data Table									 
-Procedure syntax  : CALL ETL_COVID_MODEL_CORE (v_MsgTxt,v_RowCnt,v_ResultSet) ;      
+Created           : JuLY 5, 2020 			                                                                           		     
+Description       : This Procecdure is used to Upcert ETL_COVID19_DATAHUB_CORE Table									 
+Procedure syntax  : CALL ETL_COVID19_DATAHUB_CORE (v_MsgTxt,v_RowCnt,v_ResultSet) ;      
 
 1 - Represnts Failure
 Null - Represnts Success   
                                                                                                                                   
 Date           	Ver#		Modified By(Name)       	Version Comments                   
 -----------   	-------     -------------------------	----------------------------                       
-06/26/2020      1.0         Teradata DW              	Initial
-07/11/2020		2.0			Teradata DW					Added the insert to FACT_Covid_Model_Data_SUM as target
-07/25/2020		3.0			Teradata DW					Modified the STG_Summary_stats_all_locs to not be based on path date
+07/05/2020      1.0         Teradata DW              	Initial
+07/06/2020		2.0         Teradata DW              	Added LVL2 Code
+07/06/2020		3.0			Teradata DW					severe column was not being passed anymore set to null
 */
 /*****************************************************************************************************/
 SQL SECURITY INVOKER
 BEGIN
 
  /* Local Variable Declaration */ 
-DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_Covid_Model_Data';
+DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_COVID19_DATAHUB';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
-DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_COVID_MODEL_CORE';
-DECLARE v_Date_Key_Val VARCHAR(30);
+DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_COVID19_DATAHUB_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -5297,595 +5520,445 @@ END;
 --Put Your Transformation Logic Here
 /******************************************************************/
 
--- 07.25.20 Changes
-SELECT CASE WHEN Path_Update_Val=(SELECT DISTINCT Path_Update_Dt
-								  FROM ???.STG_Hospitalization_all_locs)
-			THEN TO_DATE('9999-12-31','YYYY-MM-DD') ELSE DATE END as DATE_KEY_VAL into v_Date_Key_Val
-FROM ???.FACT_Covid_Model_Data
-QUALIFY 1=ROW_NUMBER() OVER (ORDER BY DATE_KEY DESC);
+ 
+MERGE INTO ???.FACT_COVID19_DATAHUB as target
+USING    
+ ( select x.PROCESS_TYPE,      	
+   	x.date_key,
+    x.GEO_KEY,
+    x.TEST_CNT,
+    x.confirmed_CNT,
+    x.recovered_CNT,
+    x.deaths_CNT,
+    x.HOSPITALIZED_CNT,
+    x.ON_VENTILATOR_CNT,
+    x.IN_ICU_CNT,
+    x.SEVERE_CASE_CNT,
+    x.population  ,
+    x.school_closing  ,
+    x.workplace_closing  ,
+    x.cancel_events  ,
+    x.gatherings_restrictions  ,
+    x.transport_closing  ,
+    x.stay_home_restrictions  ,
+    x.internal_movement_restrictions  ,
+    x.international_movement_restrictions  ,
+    x.information_campaigns  ,
+    x.testing_policy  ,
+    x.contact_tracing  ,
+    x.stringency_index  ,
+    x.key_STR,
+    x.key_numeric,
+    x.key_google_mobility,
+    x.key_apple_mobility,
+    x.key_alpha_2, 
+    x.REC_INS_TS 
+   --select *  
+from  
+  
+  (
+  
+ select  a.date_key,
+    a.GEO_KEY,
+    a.TEST_CNT,
+    a.confirmed_CNT,
+    a.recovered_CNT,
+    a.deaths_CNT,
+    a.HOSPITALIZED_CNT,
+    a.ON_VENTILATOR_CNT,
+    a.IN_ICU_CNT,
+    a.SEVERE_CASE_CNT,
+    a.population  ,
+    a.school_closing  ,
+    a.workplace_closing  ,
+    a.cancel_events  ,
+    a.gatherings_restrictions  ,
+    a.transport_closing  ,
+    a.stay_home_restrictions  ,
+    a.internal_movement_restrictions  ,
+    a.international_movement_restrictions  ,
+    a.information_campaigns  ,
+    a.testing_policy  ,
+    a.contact_tracing  ,
+    a.stringency_index  ,
+    a.key_STR,
+    a.key_numeric,
+    a.key_google_mobility,
+    a.key_apple_mobility,
+    a.key_alpha_2, 
+    a.REC_INS_TS ,
+ 
+    CASE
+          WHEN b.date_KEY IS NULL
+                 THEN 'I'
+          WHEN b.date_KEY is not null  
+          and ( a.TEST_CNT <> b.TESTED_CNT or
+                a.confirmed_CNT <> b.confirmed_CNT or
+    			a.recovered_CNT <> b.recovered_CNT or
+    			a.HOSPITALIZED_CNT <> b.HOSPITALIZED_CNT or
+    			a.deaths_CNT <> b.death_CNT  or
+   				a.ON_VENTILATOR_CNT <> b.ON_VENTILATOR_CNT or
+    			a.IN_ICU_CNT <> b.IN_ICU_CNT or
+    			a.SEVERE_CASE_CNT <> b.SEVERE_CASE_CNT )
+                -- put weird logic here
+                 THEN 'U'
+          ELSE NULL
+                     END AS PROCESS_TYPE
+                     
+                     --select *
+    from (
 
 
-IF v_Date_Key_Val <> '9999-12-31'(DATE) THEN
-	-- forcasting model
-	-- Every version is kept for day over day comparison
-	MERGE INTO ???.FACT_Covid_Model_Data as target
-	USING  
-	  	(select x.PROCESS_TYPE,     
-	    		CASE WHEN x.PROCESS_TYPE = 'I'
-	        	THEN y.MAX_ID + ROW_NUMBER() OVER(ORDER BY x.location_name,x.Modeled_date)
-				ELSE x.MODEL_KEY END AS MODEL_KEY,
-	  	x.geo_key,
-	  	x.geo_granularity,
-	    x.MODEL_VERSION,
-	    x.location_name,
-	    x.Modeled_date,
-	    x.date_key,
-	    x.DATE_GRANULARITY,
-	    x.allbed_mean,
-	    x.allbed_lower,
-	    x.allbed_upper,
-	    x.ICUbed_mean,
-	    x.ICUbed_lower,
-	    x.ICUbed_upper,
-	    x.InvVen_mean,
-	    x.InvVen_lower,
-	    x.InvVen_upper,
-	    x.deaths_mean,
-	    x.deaths_lower,
-	    x.deaths_upper,
-	    x.admis_mean,
-	    x.admis_lower,
-	    x.admis_upper,
-	    x.newICU_mean,
-	    x.newICU_lower,
-	    x.newICU_upper,
-	    x.totdea_mean,
-	    x.totdea_lower,
-	    x.totdea_upper,
-	    x.bedover_mean,
-	    x.bedover_lower,
-	    x.bedover_upper,
-	    x.icuover_mean,
-	    x.icuover_lower,
-	    x.icuover_upper,
-	    x.deaths_mean_smoothed,
-	    x.deaths_lower_smoothed,
-	    x.deaths_upper_smoothed,
-	    x.totdea_mean_smoothed,
-	    x.totdea_lower_smoothed,
-	    x.totdea_upper_smoothed,
-	    x.mobility_data_type,
-	    x.mobility_composite,
-	    x.total_tests_data_type,
-	    x.total_tests,
-	    x.confirmed_infections,
-	    x.est_infections_mean,
-	    x.est_infections_lower,
-	    x.est_infections_upper,
-	    x.REC_INS_TS,
-	    x.REC_UPD_TS,
-		x.Path_Update_Val
-	from (
-	 	select
-	  	b.MODEL_KEY,
-	  	a.geo_key,
-	  	a.geo_granularity,
-	    a.MODEL_VERSION,
-	    a.location_name,
-	    a.Modeled_date,
-	    a.date_key,
-	    a.DATE_GRANULARITY,
-	    a.allbed_mean,
-	    a.allbed_lower,
-	    a.allbed_upper,
-	    a.ICUbed_mean,
-	    a.ICUbed_lower,
-	    a.ICUbed_upper,
-	    a.InvVen_mean,
-	    a.InvVen_lower,
-	    a.InvVen_upper,
-	    a.deaths_mean,
-	    a.deaths_lower,
-	    a.deaths_upper,
-	    a.admis_mean,
-	    a.admis_lower,
-	    a.admis_upper,
-	    a.newICU_mean,
-	    a.newICU_lower,
-	    a.newICU_upper,
-	    a.totdea_mean,
-	    a.totdea_lower,
-	    a.totdea_upper,
-	    a.bedover_mean,
-	    a.bedover_lower,
-	    a.bedover_upper,
-	    a.icuover_mean,
-	    a.icuover_lower,
-	    a.icuover_upper,
-	    a.deaths_mean_smoothed,
-	    a.deaths_lower_smoothed,
-	    a.deaths_upper_smoothed,
-	    a.totdea_mean_smoothed,
-	    a.totdea_lower_smoothed,
-	    a.totdea_upper_smoothed,
-	    a.mobility_data_type,
-	    a.mobility_composite,
-	    a.total_tests_data_type,
-	    a.total_tests,
-	    a.confirmed_infections,
-	    a.est_infections_mean,
-	    a.est_infections_lower,
-	    a.est_infections_upper,
-	    coalesce(b.REC_INS_TS,a.REC_INS_TS) REC_INS_TS,
-	    a.REC_UPD_TS,
-	    CASE WHEN b.MODEL_KEY IS NULL THEN 'I'
-	          ELSE NULL END AS PROCESS_TYPE,
-		a.Path_Update_Val
-	    FROM  ( 
-				select 
-			 	coalesce(l.uid,-1) geo_key,
-			 	coalesce(l.geo_granularity, (select geo_granularity from ???.DIM_GEO_LOCATION_V where uid = -1) ) geo_granularity,
-			 	a.V1 MODEL_VERSION,
-			    a.location_name,
-			    a."date"  Modeled_date, 
-			    a.allbed_mean,
-			    a.allbed_lower,
-			    a.allbed_upper,
-			    a.ICUbed_mean,
-			    a.ICUbed_lower,
-			    a.ICUbed_upper,
-			    a.InvVen_mean,
-			    a.InvVen_lower,
-			    a.InvVen_upper,
-			    a.deaths_mean,
-			    a.deaths_lower,
-			    a.deaths_upper,
-			    a.admis_mean,
-			    a.admis_lower,
-			    a.admis_upper,
-			    a.newICU_mean,
-			    a.newICU_lower,
-			    a.newICU_upper,
-			    a.totdea_mean,
-			    a.totdea_lower,
-			    a.totdea_upper,
-			    a.bedover_mean,
-			    a.bedover_lower,
-			    a.bedover_upper,
-			    a.icuover_mean,
-			    a.icuover_lower,
-			    a.icuover_upper,
-			    a.deaths_mean_smoothed,
-			    a.deaths_lower_smoothed,
-			    a.deaths_upper_smoothed,
-			    a.totdea_mean_smoothed,
-			    a.totdea_lower_smoothed,
-			    a.totdea_upper_smoothed,
-			    a.mobility_data_type,
-			    a.mobility_composite,
-			    a.total_tests_data_type,
-			    a.total_tests,
-			    a.confirmed_infections,
-			    a.est_infections_mean,
-			    a.est_infections_lower,
-			    a.est_infections_upper,
-				current_timestamp(0) REC_INS_TS, 	 
-				current_timestamp(0) REC_UPD_TS,
-				--cast(Path_Update_Dt as date) date_key,
-				v_Date_Key_Val as date_key,
-				'Daily' date_granularity,
-				a.Path_Update_dt as Path_Update_Val
-				from ???.STG_Hospitalization_all_locs a
-				left outer join ???.DIM_GEO_LOCATION_V l 
-			        	on (a.location_name = l.state_name
-			        	and l.geo_granularity = 'State')
-			        	or (a.location_name = l.country_name
-			        	and l.geo_granularity = 'country')
-				 
-			    --where date_key >= coalesce((select max(date_key) from ???.FACT_Covid_Model_Data),date_key)
-	        ) a     
-	        LEFT OUTER JOIN ???.FACT_Covid_Model_Data b
-	        	on a.geo_key =  b.geo_key 
-				and a.Modeled_date = b.Modeled_date
-				and a.date_key = b.date_key) AS x
+SELECT 
+   cast ( date_key as date) date_key,
+    UID GEO_KEY,
+    tests TEST_CNT,
+    confirmed confirmed_CNT,
+    recovered recovered_CNT,
+    deaths deaths_CNT,
+    hosp HOSPITALIZED_CNT,
+    vent  ON_VENTILATOR_CNT,
+    icu IN_ICU_CNT,
+	-- 07/17/20 Changes
+    0 SEVERE_CASE_CNT,
+	-- End of Changes
+    l3.population  ,
+    school_closing  ,
+    workplace_closing  ,
+    cancel_events  ,
+    gatherings_restrictions  ,
+    transport_closing  ,
+    stay_home_restrictions  ,
+    internal_movement_restrictions  ,
+    international_movement_restrictions  ,
+    information_campaigns  ,
+    testing_policy  ,
+    contact_tracing  ,
+    stringency_index  ,
+    "key" key_STR,
+    key_numeric,
+    key_google_mobility,
+    key_apple_mobility,
+    key_alpha_2 ,
+ 	current_timestamp(0) REC_INS_TS
+ 	--select min(date_key)
+from ???.STG_COVID19_Datahub_LVL3 l3
+left outer join ???.DIM_GEO_LOCATION_V g
+on l3.key_numeric  =  g.fips 
+where g.uid is not null ) a
+ 
+        LEFT OUTER JOIN ???.FACT_COVID19_DATAHUB_v b
+           ON   a.DATE_KEY = b.DATE_KEY 
+           and a.GEO_key = b.GEO_key 
+       
+                ) AS x
+WHERE x.PROCESS_TYPE  IS NOT NULL 
+         
+)  as source
+  
 
-	        CROSS JOIN
-	                (SELECT ZEROIFNULL(MAX(Model_KEY)) AS MAX_ID
-	                 FROM ???.FACT_Covid_Model_Data 
-	                ) AS y  
-	        WHERE x.PROCESS_TYPE IS NOT NULL
-			
-		)  as source
-	-- join on primary key is obligatory
-	ON  source.Model_KEY = target.Model_KEY
-	and source.date_key = target.date_key
-	and source.geo_key = target.geo_key
-	--
-	WHEN NOT MATCHED THEN 
-	insert  
-	(   	
-		MODEL_KEY,
-	    DATE_KEY,
-	    DATE_GRANULARITY,
-	    GEO_KEY,
-	    GEO_GRANULARITY,
-	    MODEL_VERSION,
-	    location_name,
-	    Modeled_date,
-	    allbed_mean,
-	    allbed_lower,
-	    allbed_upper,
-	    ICUbed_mean,
-	    ICUbed_lower,
-	    ICUbed_upper,
-	    InvVen_mean,
-	    InvVen_lower,
-	    InvVen_upper,
-	    deaths_mean,
-	    deaths_lower,
-	    deaths_upper,
-	    admis_mean,
-	    admis_lower,
-	    admis_upper,
-	    newICU_mean,
-	    newICU_lower,
-	    newICU_upper,
-	    totdea_mean,
-	    totdea_lower,
-	    totdea_upper,
-	    bedover_mean,
-	    bedover_lower,
-	    bedover_upper,
-	    icuover_mean,
-	    icuover_lower,
-	    icuover_upper,
-	    deaths_mean_smoothed,
-	    deaths_lower_smoothed,
-	    deaths_upper_smoothed,
-	    totdea_mean_smoothed,
-	    totdea_lower_smoothed,
-	    totdea_upper_smoothed,
-	    mobility_data_type,
-	    mobility_composite,
-	    total_tests_data_type,
-	    total_tests,
-	    confirmed_infections,
-	    est_infections_mean,
-	    est_infections_lower,
-	    est_infections_upper,
-	    REC_INS_TS,
-	    REC_UPD_TS,
-		Path_Update_Val) 
-	values (	
-	   	source.MODEL_KEY,
-	    source.DATE_key,
-	    source.DATE_GRANULARITY,
-	    source.GEO_KEY,
-	    source.GEO_GRANULARITY,
-	    source.MODEL_VERSION,
-	    source.location_name,
-	    source.Modeled_date,
-	    source.allbed_mean,
-	    source.allbed_lower,
-	    source.allbed_upper,
-	    source.ICUbed_mean,
-	    source.ICUbed_lower,
-	    source.ICUbed_upper,
-	    source.InvVen_mean,
-	    source.InvVen_lower,
-	    source.InvVen_upper,
-	   	source.deaths_mean,
-	    source.deaths_lower,
-	    source.deaths_upper,
-	    source.admis_mean,
-	    source.admis_lower,
-	    source.admis_upper,
-	    source.newICU_mean,
-	    source.newICU_lower,
-	    source.newICU_upper,
-	    source.totdea_mean,
-	    source.totdea_lower,
-	    source.totdea_upper,
-	    source.bedover_mean,
-	   	source.bedover_lower,
-	    source.bedover_upper,
-	    source.icuover_mean,
-	    source.icuover_lower,
-	    source.icuover_upper,
-	    source.deaths_mean_smoothed,
-	    source.deaths_lower_smoothed,
-	    source.deaths_upper_smoothed,
-	    source.totdea_mean_smoothed,
-	    source.totdea_lower_smoothed,
-	    source.totdea_upper_smoothed,
-	    source.mobility_data_type,
-	    source.mobility_composite,
-	    source.total_tests_data_type,
-	    source.total_tests,
-	    source.confirmed_infections,
-	    source.est_infections_mean,
-	    source.est_infections_lower,
-	    source.est_infections_upper,
-	    source.REC_INS_TS,
-	    source.REC_UPD_TS,
-		source.Path_Update_Val);
-	    
-	----------------------------------------------------------- 
-	SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
-	----------------------------------------------------------- 
+-- join on primary key is obligatory
 
-	delete from ???.FACT_Covid_Model_Data_UNPIVOT;
-	insert into ???.FACT_Covid_Model_Data_UNPIVOT
-	SELECT 
-		MODEL_KEY,
-	    DATE_KEY,
-	    DATE_GRANULARITY,
-	    GEO_KEY,
-	    GEO_GRANULARITY,
-	    MODELED_DATE,
-	    MODEL_VERSION,
-	    location_name,
-	    mobility_data_type,
-	    total_tests_data_type,
-	    Metric_name,
-	    Metric_value,
-	    REC_INS_TS,
-	    REC_UPD_TS 
-		--
-	    FROM ???.FACT_Covid_Model_Data 
-	    UNPIVOT ((metric_value)  FOR  metric_name 
-	    IN ((allbed_mean) as'allbed_mean',
-			(allbed_lower) as'allbed_lower',
-			(allbed_upper) as'allbed_upper',
-			(ICUbed_mean) as'ICUbed_mean',
-			(ICUbed_lower) as'ICUbed_lower',
-			(ICUbed_upper) as'ICUbed_upper',
-			(InvVen_mean) as'InvVen_mean',
-			(InvVen_lower) as'InvVen_lower',
-			(InvVen_upper) as'InvVen_upper',
-			(deaths_mean) as'deaths_mean',
-			(deaths_lower) as'deaths_lower',
-			(deaths_upper) as'deaths_upper',
-			(admis_mean) as'admis_mean',
-			(admis_lower) as'admis_lower',
-			(admis_upper) as'admis_upper',
-			(newICU_mean) as'newICU_mean',
-			(newICU_lower) as'newICU_lower',
-			(newICU_upper) as'newICU_upper',
-			(totdea_mean) as'totdea_mean',
-			(totdea_lower) as'totdea_lower',
-			(totdea_upper) as'totdea_upper',
-			(bedover_mean) as'bedover_mean',
-			(bedover_lower) as'bedover_lower',
-			(bedover_upper) as'bedover_upper',
-			(icuover_mean) as'icuover_mean',
-			(icuover_lower) as'icuover_lower',
-			(icuover_upper) as'icuover_upper',
-			(deaths_mean_smoothed) as'deaths_mean_smoothed',
-			(deaths_lower_smoothed) as'deaths_lower_smoothed',
-			(deaths_upper_smoothed) as'deaths_upper_smoothed',
-			(totdea_mean_smoothed) as'totdea_mean_smoothed',
-			(totdea_lower_smoothed) as'totdea_lower_smoothed',
-			(totdea_upper_smoothed) as'totdea_upper_smoothed',
-			 --(mobility_data_type) as'mobility_data_type',
-			 (mobility_composite) as'mobility_composite',
-			--(total_tests_data_type) as'total_tests_data_type',
-			 (total_tests) as'total_tests',
-			(confirmed_infections) as'confirmed_infections',
-			(est_infections_mean) as'est_infections_mean',
-			(est_infections_lower) as'est_infections_lower',
-			(est_infections_upper) as'est_infections_upper'
-			) )  a
-	--07/25/2020 Changes
-	where a.date_key = v_Date_Key_Val;
+ON  source.date_key = target.date_key
+ and source.GEO_KEY = target.GEO_KEY
+--WHEN MATCHED THEN UPDATE
+--SET product_status  = source.product_status
+WHEN NOT MATCHED THEN 
+insert  
+(   	      	
+   	 date_key,
+    GEO_KEY,
+     TESTCNT,
+    confirmed_CNT,
+    recovered_CNT,
+     deaths_CNT,
+     HOSPITALIZED_CNT,
+     ON_VENTILATOR_CNT,
+     IN_ICU_CNT,
+     SEVERE_CASE_CNT,
+     population  ,
+      school_closing  ,
+     workplace_closing  ,
+     cancel_events  ,
+      gatherings_restrictions  ,
+     transport_closing  ,
+     stay_home_restrictions  ,
+     internal_movement_restrictions  ,
+     international_movement_restrictions  ,
+     information_campaigns  ,
+     testing_policy  ,
+     contact_tracing  ,
+     stringency_index  ,
+     key_STR,
+     key_numeric,
+     key_google_mobility,
+     key_apple_mobility,
+     key_alpha_2, 
+     REC_INS_TS   ) 
+values ( 
+		   	
+   	source.date_key,
+    source.GEO_KEY,
+    source.TEST_CNT,
+    source.confirmed_CNT,
+    source.recovered_CNT,
+    source.deaths_CNT,
+    source.HOSPITALIZED_CNT,
+    source.ON_VENTILATOR_CNT,
+    source.IN_ICU_CNT,
+    source.SEVERE_CASE_CNT,
+    source.population  ,
+    source.school_closing  ,
+    source.workplace_closing  ,
+    source.cancel_events  ,
+    source.gatherings_restrictions  ,
+    source.transport_closing  ,
+    source.stay_home_restrictions  ,
+    source.internal_movement_restrictions  ,
+    source.international_movement_restrictions  ,
+    source.information_campaigns  ,
+    source.testing_policy  ,
+    source.contact_tracing  ,
+    source.stringency_index  ,
+    source.key_STR,
+    source.key_numeric,
+    source.key_google_mobility,
+    source.key_apple_mobility,
+    source.key_alpha_2, 
+    source.REC_INS_TS )
+     when matched then
+ update 
+ set   	TESTCNT = source.TEST_CNT
+       	,confirmed_CNT = source.confirmed_CNT
+    	,recovered_CNT = source.recovered_CNT
+     	,deaths_CNT = source.deaths_CNT
+     	,HOSPITALIZED_CNT = source.HOSPITALIZED_CNT
+     	,ON_VENTILATOR_CNT = source.ON_VENTILATOR_CNT
+     	,IN_ICU_CNT = source.IN_ICU_CNT
+     	,SEVERE_CASE_CNT  = source.SEVERE_CASE_CNT
+     	;
+	
 
-	----------------------------------------------------------- 
-	SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
-	----------------------------------------------------------- 
-	-- Added 07/11/20
-	MERGE INTO ???.FACT_Covid_Model_Data_SUM as target
-	USING  
-	  (   
-	   select          
-	   	x.PROCESS_TYPE,     
-	    x.DATE_KEY,
-	    x.DATE_GRANULARITY,
-	    x.GEO_KEY,
-	    x.GEO_GRANULARITY,
-	    x.peak_bed_day_mean,
-	    x.peak_bed_day_lower,
-	    x.peak_bed_day_upper,
-	    x.peak_icu_bed_day_mean,
-	    x.peak_icu_bed_day_lower,
-	    x.peak_icu_bed_day_upper,
-	    x.peak_vent_day_mean,
-	    x.peak_vent_day_lower,
-	    x.peak_vent_day_upper,
-	    x.all_bed_capacity,
-	    x.icu_bed_capacity,
-	    x.all_bed_usage,
-	    x.icu_bed_usage,
-	    x.available_all_nbr,
-	    x.available_icu_nbr,
-	    x.travel_limit_start_date,
-	    x.travel_limit_end_date,
-	    x.stay_home_start_date,
-	    x.stay_home_end_date,
-	    x.educational_fac_start_date,
-	    x.educational_fac_end_date,
-	    x.any_gathering_restrict_start_date,
-	    x.any_gathering_restrict_end_date,
-	    x.any_business_start_date,
-	    x.any_business_end_date,
-	    x.all_non_ess_business_start_date,
-	    x.all_non_ess_business_end_date,
-	    x.REC_INS_TS,
-	    x.REC_UPD_TS
-		-- 
-	from (
-	 	select   
-	  	a.DATE_KEY,
-	    a.DATE_GRANULARITY,
-	    a.GEO_KEY,
-	    a.GEO_GRANULARITY,
-	    a.peak_bed_day_mean,
-	    a.peak_bed_day_lower,
-	    a.peak_bed_day_upper,
-	    a.peak_icu_bed_day_mean,
-	    a.peak_icu_bed_day_lower,
-	    a.peak_icu_bed_day_upper,
-	    a.peak_vent_day_mean,
-	    a.peak_vent_day_lower,
-	    a.peak_vent_day_upper,
-	    a.all_bed_capacity,
-	    a.icu_bed_capacity,
-	    a.all_bed_usage,
-	    a.icu_bed_usage,
-	    a.available_all_nbr,
-	    a.available_icu_nbr,
-	    a.travel_limit_start_date,
-	    a.travel_limit_end_date,
-	    a.stay_home_start_date,
-	    a.stay_home_end_date,
-	    a.educational_fac_start_date,
-	    a.educational_fac_end_date,
-	    a.any_gathering_restrict_start_date,
-	    a.any_gathering_restrict_end_date,
-	    a.any_business_start_date,
-	    a.any_business_end_date,
-	    a.all_non_ess_business_start_date,
-	    a.all_non_ess_business_end_date,
-	    coalesce(b.REC_INS_TS,current_timestamp(0)) REC_INS_TS,
-	    current_timestamp REC_UPD_TS,
-	    CASE WHEN b.date_KEY IS NULL THEN 'I'
-	         ELSE NULL END AS PROCESS_TYPE
-	    from  ( 
-	 	select 
-		--cast(  Path_Update_Dt  as date) date_key,
-		v_Date_Key_Val as date_key,
-		'Daily' date_granularity, 
-	 	coalesce(l.uid,-1) geo_key,
-	 	coalesce(l.geo_granularity, (select geo_granularity from ???.DIM_GEO_LOCATION_V where uid = -1) ) geo_granularity,
-	    a.peak_bed_day_mean,
-	    a.peak_bed_day_lower,
-	    a.peak_bed_day_upper,
-	    a.peak_icu_bed_day_mean,
-	    a.peak_icu_bed_day_lower,
-	    a.peak_icu_bed_day_upper,
-	    a.peak_vent_day_mean,
-	    a.peak_vent_day_lower,
-	    a.peak_vent_day_upper,
-	    a.all_bed_capacity,
-	    a.icu_bed_capacity,
-	    a.all_bed_usage,
-	    a.icu_bed_usage,
-	    a.available_all_nbr,
-	    a.available_icu_nbr,
-	    a.travel_limit_start_date,
-	    a.travel_limit_end_date,
-	    a.stay_home_start_date,
-	    a.stay_home_end_date,
-	    a.educational_fac_start_date,
-	    a.educational_fac_end_date,
-	    a.any_gathering_restrict_start_date,
-	    a.any_gathering_restrict_end_date,
-	    a.any_business_start_date,
-	    a.any_business_end_date,
-	    a."ALL_NON-ESS_BUSINESS_START_DATE" ALL_NON_ESS_BUSINESS_START_DATE,
-	    a."ALL_NON-ESS_BUSINESS_END_DATE" ALL_NON_ESS_BUSINESS_END_DATE 
-		--
-	    from ???.STG_Summary_stats_all_locs a
-	    left outer join ???.DIM_GEO_LOCATION_V l 
-	      	on (a.location_name = l.state_name
-	       	and l.geo_granularity = 'State')
-	       	or (a.location_name = l.country_name
-	       	and l.geo_granularity = 'country')
-	    --where date_key >= coalesce((select max(date_key) from ???.FACT_Covid_Model_Data_SUM),date_key)
-	        ) a     
-	        LEFT OUTER JOIN ???.FACT_Covid_Model_Data_SUM b
-	        on a.geo_key =  b.geo_key 
-			and a.date_key = b.date_key         
-	        ) AS x
-	  
-	        WHERE x.PROCESS_TYPE IS NOT NULL 
-	             
-	)  as source
-	--
-	ON source.date_key = target.date_key
-	AND source.geo_key = target.geo_key
-	--
-	WHEN NOT MATCHED THEN 
-	insert  
-	(   	
-	 	DATE_KEY,
-	    DATE_GRANULARITY,
-	    GEO_KEY,
-	    GEO_GRANULARITY,
-	    peak_bed_day_mean,
-	    peak_bed_day_lower,
-	    peak_bed_day_upper,
-	    peak_icu_bed_day_mean,
-	    peak_icu_bed_day_lower,
-	    peak_icu_bed_day_upper,
-	    peak_vent_day_mean,
-	    peak_vent_day_lower,
-	    peak_vent_day_upper,
-	    all_bed_capacity,
-	    icu_bed_capacity,
-	    all_bed_usage,
-	    icu_bed_usage,
-	    available_all_nbr,
-	    available_icu_nbr,
-	    travel_limit_start_date,
-	    travel_limit_end_date,
-	    stay_home_start_date,
-	    stay_home_end_date,
-	    educational_fac_start_date,
-	    educational_fac_end_date,
-	    any_gathering_restrict_start_date,
-	    any_gathering_restrict_end_date,
-	    any_business_start_date,
-	    any_business_end_date,
-	    all_non_ess_business_start_date,
-	    all_non_ess_business_end_date,
-	    REC_INS_TS,
-	    REC_UPD_TS  ) 
-	values ( 
-	  	source.DATE_KEY,
-	    source.DATE_GRANULARITY,
-	    source.GEO_KEY,
-	    source.GEO_GRANULARITY,
-	    source.peak_bed_day_mean,
-	    source.peak_bed_day_lower,
-	    source.peak_bed_day_upper,
-	    source.peak_icu_bed_day_mean,
-	    source.peak_icu_bed_day_lower,
-	    source.peak_icu_bed_day_upper,
-	    source.peak_vent_day_mean,
-	    source.peak_vent_day_lower,
-	    source.peak_vent_day_upper,
-	    source.all_bed_capacity,
-	    source.icu_bed_capacity,
-	    source.all_bed_usage,
-	    source.icu_bed_usage,
-	    source.available_all_nbr,
-	    source.available_icu_nbr,
-	    source.travel_limit_start_date,
-	    source.travel_limit_end_date,
-	    source.stay_home_start_date,
-	    source.stay_home_end_date,
-	    source.educational_fac_start_date,
-	    source.educational_fac_end_date,
-	    source.any_gathering_restrict_start_date,
-	    source.any_gathering_restrict_end_date,
-	    source.any_business_start_date,
-	    source.any_business_end_date,
-	    source.all_non_ess_business_start_date,
-	    source.all_non_ess_business_end_date,
-	    source.REC_INS_TS,
-	    null  );
-		--
-END IF;
+SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
+
+
+--LVL2 Changes
+MERGE INTO ???.FACT_COVID19_DATAHUB_STATE as target
+USING    
+ ( select x.PROCESS_TYPE,      	
+   	x.date_key,
+    x.GEO_KEY,
+    x.TESTED_CNT,
+    x.confirmed_CNT,
+    x.recovered_CNT,
+    x.death_CNT,
+    x.HOSPITALIZED_CNT,
+    x.ON_VENTILATOR_CNT,
+    x.IN_ICU_CNT,
+    x.SEVERE_CASE_CNT,
+    x.population  ,
+    x.school_closing  ,
+    x.workplace_closing  ,
+    x.cancel_events  ,
+    x.gatherings_restrictions  ,
+    x.transport_closing  ,
+    x.stay_home_restrictions  ,
+    x.internal_movement_restrictions  ,
+    x.international_movement_restrictions  ,
+    x.information_campaigns  ,
+    x.testing_policy  ,
+    x.contact_tracing  ,
+    x.stringency_index  ,
+    x.key_STR,
+    x.key_numeric,
+    x.key_google_mobility,
+    x.key_apple_mobility,
+    x.key_alpha_2, 
+    x.REC_INS_TS 
+   --select *  
+from  
+  
+  (
+  
+ select  a.date_key,
+    a.GEO_KEY,
+    a.TESTED_CNT,
+    a.confirmed_CNT,
+    a.recovered_CNT,
+    a.death_CNT,
+    a.HOSPITALIZED_CNT,
+    a.ON_VENTILATOR_CNT,
+    a.IN_ICU_CNT,
+    a.SEVERE_CASE_CNT,
+    a.population  ,
+    a.school_closing  ,
+    a.workplace_closing  ,
+    a.cancel_events  ,
+    a.gatherings_restrictions  ,
+    a.transport_closing  ,
+    a.stay_home_restrictions  ,
+    a.internal_movement_restrictions  ,
+    a.international_movement_restrictions  ,
+    a.information_campaigns  ,
+    a.testing_policy  ,
+    a.contact_tracing  ,
+    a.stringency_index  ,
+    a.key_STR,
+    a.key_numeric,
+    a.key_google_mobility,
+    a.key_apple_mobility,
+    a.key_alpha_2, 
+    a.REC_INS_TS ,
+ 
+    CASE
+          WHEN b.date_KEY IS NULL
+                 THEN 'I'
+          WHEN b.date_KEY is not null  
+          and ( a.TESTED_CNT <> b.TESTED_CNT or
+                a.confirmed_CNT <> b.confirmed_CNT or
+    			a.recovered_CNT <> b.recovered_CNT or
+    			a.HOSPITALIZED_CNT <> b.HOSPITALIZED_CNT or
+    			a.death_CNT <> b.death_CNT  or
+   				a.ON_VENTILATOR_CNT <> b.ON_VENTILATOR_CNT or
+    			a.IN_ICU_CNT <> b.IN_ICU_CNT or
+    			a.SEVERE_CASE_CNT <> b.SEVERE_CASE_CNT )
+                -- put weird logic here
+                 THEN 'U'
+          ELSE NULL
+                     END AS PROCESS_TYPE
+                     
+                     --select *
+    from (
+
+
+SELECT 
+   cast ( date_key as date) date_key,
+    UID GEO_KEY,
+    tests TESTED_CNT,
+    confirmed confirmed_CNT,
+    recovered recovered_CNT,
+    deaths death_CNT,
+    hosp HOSPITALIZED_CNT,
+    vent  ON_VENTILATOR_CNT,
+    icu IN_ICU_CNT, 
+	-- 07/17/20 Changes
+    0 SEVERE_CASE_CNT,
+	-- End of Changes 
+    l2.population  ,
+    school_closing  ,
+    workplace_closing  ,
+    cancel_events  ,
+    gatherings_restrictions  ,
+    transport_closing  ,
+    stay_home_restrictions  ,
+    internal_movement_restrictions  ,
+    international_movement_restrictions  ,
+    information_campaigns  ,
+    testing_policy  ,
+    contact_tracing  ,
+    stringency_index  ,
+    "key" key_STR,
+    key_numeric,
+    key_google_mobility,
+    key_apple_mobility,
+    key_alpha_2 ,
+ 	current_timestamp(0) REC_INS_TS
+ 	--select min(date_key)
+from ???.STG_COVID19_Datahub_LVL2 l2 
+      left outer join ???.DIM_GEO_LOCATION_V g
+		on l2.administrative_area_level_2   =  g.state_name  
+		where g.uid is not null 
+		and g.geo_granularity = 'State') a
+ 
+        LEFT OUTER JOIN ???.FACT_COVID19_DATAHUB_STATE_v b
+           ON   a.DATE_KEY = b.DATE_KEY 
+           and a.GEO_key = b.GEO_key 
+       
+                ) AS x
+WHERE x.PROCESS_TYPE  IS NOT NULL 
+         
+)  as source
+  
+
+-- join on primary key is obligatory
+
+ON  source.date_key = target.date_key
+ and source.GEO_KEY = target.GEO_KEY
+--WHEN MATCHED THEN UPDATE
+--SET product_status  = source.product_status
+WHEN NOT MATCHED THEN 
+insert  
+(   	      	
+   	 date_key,
+    GEO_KEY,
+     TESTED_CNT,
+    confirmed_CNT,
+    recovered_CNT,
+     death_CNT,
+     HOSPITALIZED_CNT,
+     ON_VENTILATOR_CNT,
+     IN_ICU_CNT,
+     SEVERE_CASE_CNT,
+     population  ,
+      school_closing  ,
+     workplace_closing  ,
+     cancel_events  ,
+      gatherings_restrictions  ,
+     transport_closing  ,
+     stay_home_restrictions  ,
+     internal_movement_restrictions  ,
+     international_movement_restrictions  ,
+     information_campaigns  ,
+     testing_policy  ,
+     contact_tracing  ,
+     stringency_index  ,
+     key_STR,
+     key_numeric,
+     key_google_mobility,
+     key_apple_mobility,
+     key_alpha_2, 
+     REC_INS_TS   ) 
+values ( 
+		   	
+   	source.date_key,
+    source.GEO_KEY,
+    source.TESTED_CNT,
+    source.confirmed_CNT,
+    source.recovered_CNT,
+    source.death_CNT,
+    source.HOSPITALIZED_CNT,
+    source.ON_VENTILATOR_CNT,
+    source.IN_ICU_CNT,
+    source.SEVERE_CASE_CNT,
+    source.population  ,
+    source.school_closing  ,
+    source.workplace_closing  ,
+    source.cancel_events  ,
+    source.gatherings_restrictions  ,
+    source.transport_closing  ,
+    source.stay_home_restrictions  ,
+    source.internal_movement_restrictions  ,
+    source.international_movement_restrictions  ,
+    source.information_campaigns  ,
+    source.testing_policy  ,
+    source.contact_tracing  ,
+    source.stringency_index  ,
+    source.key_STR,
+    source.key_numeric,
+    source.key_google_mobility,
+    source.key_apple_mobility,
+    source.key_alpha_2, 
+    source.REC_INS_TS )
+     when matched then
+ update 
+ set   	TESTED_CNT = source.TESTED_CNT
+       	,confirmed_CNT = source.confirmed_CNT
+    	,recovered_CNT = source.recovered_CNT
+     	,death_CNT = source.death_CNT
+     	,HOSPITALIZED_CNT = source.HOSPITALIZED_CNT
+     	,ON_VENTILATOR_CNT = source.ON_VENTILATOR_CNT
+     	,IN_ICU_CNT = source.IN_ICU_CNT
+     	,SEVERE_CASE_CNT  = source.SEVERE_CASE_CNT;
  
 /******************************************************************/
 --End of Transformation Logic
@@ -5901,6 +5974,68 @@ SET v_RowCnt = v_RecordsAffected;
 INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v_RecordsAffected,current_timestamp(0));
 	
 END;
+
+
+
+REPLACE PROCEDURE ???.ETL_CUST_DATA_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
+/*********************************************************************************************************/
+/* 
+Procedure Name    : ETL_CUST_DATA_CORE                                              		
+Developed By      : Teradata Team                                                                            			  
+Created           : July 27, 2020 			                                                                           		     
+Description       : This Procecdure is used to upcert customer specific metrics into the data model									 
+Procedure syntax  : CALL ETL_CUST_DATA_CORE (v_MsgTxt,v_RowCnt,v_ResultSet) ;      
+
+1 - Represnts Failure
+Null - Represnts Success   
+                                                                                                                                  
+Date           	Ver#		Modified By(Name)       	Version Comments                   
+-----------   	-------     -------------------------	----------------------------                       
+07/27/2020      1.0         Teradata DW              	Initial
+*/
+/*****************************************************************************************************/
+SQL SECURITY INVOKER
+BEGIN
+
+ /* Local Variable Declaration */ 
+DECLARE v_CoreTable VARCHAR(100) DEFAULT '???';
+DECLARE v_RecordsAffected INTEGER DEFAULT 0;
+DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_CUST_DATA_CORE';
+DECLARE v_Message VARCHAR(200);
+
+/* Exception Handling when when SQL Exception occurs */
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
+	SET v_ResultSet=1;
+	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
+END;
+
+/******************************************************************/
+--Put Your Transformation Logic Here
+/******************************************************************/
+
+
+ 
+/******************************************************************/
+--End of Transformation Logic
+/******************************************************************/	
+
+
+/*Getting Number of rows affected*/
+SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
+SET v_RowCnt = v_RecordsAffected;
+
+
+/*Insert Into Core Job Log*/
+INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v_RecordsAffected,current_timestamp(0));
+	
+END;
+
 
 
 REPLACE PROCEDURE ???.ETL_FUEL_PROD_CORE(OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
@@ -5928,25 +6063,16 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_p';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_FUEL_PROD_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -6147,6 +6273,8 @@ INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v
 END;
 
 
+
+
 REPLACE PROCEDURE ???.ETL_GOOGLE_MOBILITY_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
 /*********************************************************************************************************/
 /* 
@@ -6173,25 +6301,16 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_P';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_GOOGLE_MOBILITY_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -6532,6 +6651,7 @@ INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v
 END;
 
 
+
 REPLACE PROCEDURE ???.ETL_GOOGLE_TREND_CORE(OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
 /*********************************************************************************************************/
 /* 
@@ -6556,25 +6676,16 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'F_IND_DASH_GOOGLE_TRENDS';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_GOOGLE_TREND_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -6666,25 +6777,16 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_P';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_LABOR_STATS_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -6941,25 +7043,16 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_LOOKUP_TABLES';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_LOOKUP_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -7074,26 +7167,16 @@ DECLARE v_CoreTable VARCHAR(100) DEFAULT 'NA';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_POST_LOAD_CORE';
 DECLARE sqlstr VARCHAR(10000);
-
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -7182,25 +7265,16 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_P';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_TSA_TRAVEL_CORE';
+DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+BEGIN
+	GET DIAGNOSTICS EXCEPTION 1
+	v_Message = MESSAGE_TEXT;
+	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
+	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
+	--
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -7411,675 +7485,6 @@ values (
     source.DATA_SOURCE_DESC,
     source.REC_INS_TS,
     source.REC_UPD_TS   );
- 
-/******************************************************************/
---End of Transformation Logic
-/******************************************************************/	
-
-
-/*Getting Number of rows affected*/
-SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
-SET v_RowCnt = v_RecordsAffected;
-
-
-/*Insert Into Core Job Log*/
-INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v_RecordsAffected,current_timestamp(0));
-	
-END;
-
-
-
-REPLACE PROCEDURE ???.ETL_CUST_DATA_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
-/*********************************************************************************************************/
-/* 
-Procedure Name    : ETL_CUST_DATA_CORE                                              		
-Developed By      : Teradata Team                                                                            			  
-Created           : July 27, 2020 			                                                                           		     
-Description       : This Procecdure is used to upcert customer specific metrics into the data model									 
-Procedure syntax  : CALL ETL_CUST_DATA_CORE (v_MsgTxt,v_RowCnt,v_ResultSet) ;      
-
-1 - Represnts Failure
-Null - Represnts Success   
-                                                                                                                                  
-Date           	Ver#		Modified By(Name)       	Version Comments                   
------------   	-------     -------------------------	----------------------------                       
-07/27/2020      1.0         Teradata DW              	Initial
-*/
-/*****************************************************************************************************/
-SQL SECURITY INVOKER
-BEGIN
-
- /* Local Variable Declaration */ 
-DECLARE v_CoreTable VARCHAR(100) DEFAULT '???';
-DECLARE v_RecordsAffected INTEGER DEFAULT 0;
-DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_CUST_DATA_CORE';
-
-/* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
-	SET v_ResultSet=1;
-	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
-END;
-
-/******************************************************************/
---Put Your Transformation Logic Here
-/******************************************************************/
-
-
- 
-/******************************************************************/
---End of Transformation Logic
-/******************************************************************/	
-
-
-/*Getting Number of rows affected*/
-SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
-SET v_RowCnt = v_RecordsAffected;
-
-
-/*Insert Into Core Job Log*/
-INSERT INTO ???.ETL_Indicator_Proj_Audit VALUES (v_ProcName,'Core',v_CoreTable,v_RecordsAffected,current_timestamp(0));
-	
-END;
-
-
-REPLACE PROCEDURE ???.ETL_COVID_CASES_CORE (OUT v_MsgTxt VARCHAR(100), OUT v_RowCnt INT,OUT v_ResultSet INT)
-/*********************************************************************************************************/
-/* 
-Procedure Name    : ETL_COVID_CASES_CORE                                                 		
-Developed By      : Teradata Team                                                                            			  
-Created           : June 26, 2020 			                                                                           		     
-Description       : This Procecdure is used to Upcert FACT_INDICATOR_DASHBOARD_T2_p Table									 
-Procedure syntax  : CALL ETL_COVID_CASES_CORE (v_MsgTxt,v_RowCnt,v_ResultSet) ;      
-
-1 - Represnts Failure
-Null - Represnts Success   
-                                                                                                                                  
-Date           	Ver#		Modified By(Name)       	Version Comments                   
------------   	-------     -------------------------	----------------------------                       
-06/26/2020      1.0         Teradata DW              	Initial
-07/21/2020      2.0         Teradata DW              	Added Moving Average Physical Tables & Stats Collection
-07/22/2020		3.0			Teradata DW					Replaced the entire code to be incremental
-07/26/2020		4.0			Teradata DW					Added the historical one time load step which is only run for new installations
-07/29/2020		5.0			Teradata DW					Modified the the merge
-*/
-/*****************************************************************************************************/
-SQL SECURITY INVOKER
-BEGIN
-
- /* Local Variable Declaration */ 
-DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_INDICATOR_DASHBOARD_T2_p';
-DECLARE v_RecordsAffected INTEGER DEFAULT 0;
-DECLARE v_BaseData INTEGER;
-DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_COVID_CASES_CORE';
-
-/* Exception Handling when when SQL Exception occurs */
-DECLARE   EXIT HANDLER FOR SQLEXCEPTION
-BEGIN  
-		INSERT INTO ???.ETL_Proc_Error_Logs
-		( Sql_Code
-		  ,Logged_Time
-		  ,Sql_State
-		  ,Error_Text
-		  ,Procedure_Name
-		)
-		SELECT
-		        :SQLCODE
-		        ,CURRENT_TIMESTAMP(0) 
-		        ,:SQLSTATE
-		        ,ErrorText || 'while executing proc' ||Procedure_Name
-		        ,v_ProcName AS Procedure_Name
-		FROM DBC.ERRORMSGS 
-		WHERE ERRORCODE= :SQLCODE;
-	SET v_ResultSet=1;
-	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
-END;
-
-
-/******************************************************************/
---Put Your Transformation Logic Here
-/******************************************************************/
-
--- New York Times covid case cases
--- Historical Load
--- 07.29.20 Changes
-SELECT COUNT(*) INTO v_BaseData
-FROM ???.FACT_INDICATOR_DASHBOARD_T2_P
-WHERE DOMAIN_NAME = 'Covid19 NYT';
-
-IF v_BaseData = 0 THEN -- One time Historical Load
---
-MERGE INTO ???.FACT_INDICATOR_DASHBOARD_T2_P AS TGT
-USING  
-  ( 
-    SELECT 
-		  COALESCE(F.INDICATOR_KEY, MAXKEY.MAX_ID + ROW_NUMBER() OVER (ORDER BY T2.DATE_KEY, T2.GEO_KEY, T2.DOMAIN_NAME, T2.SUBDOMAIN_1_NAME, T2.SUBDOMAIN_2_NAME, T2.SUBDOMAIN_3_NAME, T2.METRIC_NAME)) AS INDICATOR_KEY,
-		  T2.DATE_KEY,
-		  T2.DATE_GRANULARITY,
-		  T2.GEO_KEY,
-		  T2.GEO_GRANULARITY,
-		  T2.DOMAIN_NAME,
-		  T2.SUBDOMAIN_1_NAME,
-		  T2.SUBDOMAIN_2_NAME,
-		  T2.SUBDOMAIN_3_NAME,
-		  T2.METRIC_NAME,
-		  T2.METRIC_VALUE,
-		  0 AS METRIC_INDEX,
-		  T2.DATA_SOURCE_NAME,
-		  T2.DATA_SOURCE_DESC,
-		  CURRENT_TIMESTAMP(0) AS REC_INS_TS,
-		  CURRENT_TIMESTAMP(0) AS REC_UPD_TS,
-		  CASE WHEN F.INDICATOR_KEY IS NULL
-		       THEN 'I'
-	    	   WHEN F.INDICATOR_KEY IS NOT NULL AND F.METRIC_VALUE <> T2.METRIC_VALUE
-			   THEN 'U'
-		       ELSE 'P'
-		  END AS INS_UPD_FLAG
-	FROM
-                    ( SELECT 
-		                  T1.DATE_KEY,
-                          'Day'  AS DATE_GRANULARITY,
-                          GK.UID AS GEO_KEY,
-                          T1.GEO_GRANULARITY,
-                          'Covid19 NYT'  DOMAIN_NAME,
-                          ' ' SUBDOMAIN_1_NAME,
-                          ' ' SUBDOMAIN_2_NAME,
-                          ' ' SUBDOMAIN_3_NAME,
-                          T1.CASES,
-						  T1.DAILY_NEW_CASES,
-		                  T1.DEATHS,
-						  T1.DAILY_NEW_DEATHS,
-                          'New York Times Covid cases/deaths reporting' AS DATA_SOURCE_NAME,
-                          'New York Times Covid cases/deaths reporting' AS DATA_SOURCE_DESC  
-                      FROM
-                            (
-                               SELECT 
-                                     COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD')) AS DATE_KEY,
-                                     CASE WHEN COALESCE(M.COUNTY,S.COUNTY) = 'Unknown'
-                                          THEN 'STATE'
-                                          ELSE COALESCE(M.GEO_GRANULARITY,'COUNTY')
-                                     END AS GEO_GRANULARITY,
-                                     COALESCE(M.COUNTY,S.COUNTY) AS COUNTY,
-                                     MIN(COALESCE(M.STATE_CODE,'ZZ')) OVER (PARTITION BY COALESCE(M.STATE_NAME,S.STATE) ORDER BY M.STATE_CODE) AS STATE_CODE,
-                                     COALESCE(M.STATE_NAME,S.STATE) AS STATE_NAME,
-				                     COALESCE(S.CASES,0) AS CASES,
-									 COALESCE(COALESCE(S.CASES - LAG(S.CASES,1) OVER (PARTITION BY COALESCE(M.COUNTY,S.COUNTY),COALESCE(M.STATE_NAME,S.STATE) 
-									                                                  ORDER BY COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD'))),S.CASES -1),0) AS DAILY_NEW_CASES,
-                                     COALESCE(S.DEATHS,0) AS DEATHS,
-									 COALESCE(COALESCE(S.DEATHS - LAG(S.DEATHS,1) OVER (PARTITION BY COALESCE(M.COUNTY,S.COUNTY),COALESCE(M.STATE_NAME,S.STATE) 
-									                                                    ORDER BY COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD'))),S.DEATHS-1),0) AS DAILY_NEW_DEATHS
-                               FROM
-                                (
-                                  SELECT 
-                                     DT.CAL_DATE_KEY,
-                                     GC.UID AS GEO_KEY,
-                                     GC.GEO_GRANULARITY,
-                                     GC.COUNTY, 
-                                     GC.COUNTY_LONG,
-                                     GC.STATE_CODE,
-                                     GC.STATE_NAME 
-                                  FROM 
-                                     ???.DIM_GEO_LOCATION_V GC
-                                     JOIN ???.DIM_CALENDAR_V DT ON
-                                     DT.CAL_DATE_KEY BETWEEN (SELECT MIN(DATE_KEY) FROM ???.STG_COVID19_STATS) AND (SELECT MAX(DATE_KEY) FROM ???.STG_COVID19_STATS) AND
-                                     GC.GEO_GRANULARITY = 'COUNTY' AND 
-                                     GC.COUNTRY_CODE    = 'US'
-                                ) M
-                                FULL OUTER JOIN
-                                (
-                                   SELECT 
-                                      DATE_KEY,
-                                      CASE WHEN COUNTY = 'New York City'
-					                       THEN 'New York'
-						                   ELSE COUNTY
-				                      END AS COUNTY,             -- New York City is a combination of 5 counties - it will be loaded to NY County and corrected later
-                                      STATE,
-                                      CASES,
-                                      DEATHS
-                                   FROM 
-                                     ???.STG_COVID19_STATS
-                                   WHERE 
-                                     DATE_KEY BETWEEN (SELECT MIN(DATE_KEY) FROM ???.STG_COVID19_STATS) AND (SELECT MAX(DATE_KEY) FROM ???.STG_COVID19_STATS)
-                                 ) S ON 
-                                 S.DATE_KEY = M.CAL_DATE_KEY AND
-                                 S.COUNTY IN (M.COUNTY, M.COUNTY_LONG) AND
-                                 S.STATE    = M.STATE_NAME
-                            ) T1     
-                            JOIN ???.DIM_GEO_LOCATION_V GK ON
-                            T1.GEO_GRANULARITY = GK.GEO_GRANULARITY AND
-                            T1.STATE_NAME      = GK.STATE_NAME AND 
-                            T1.COUNTY          = COALESCE(GK.COUNTY,'Unknown')	
-							--WHERE T1.DATE_KEY >= CURRENT_DATE -29  -- for incremental loads, need to filter first date because the daily new cases/deaths calculation is incorrect
-                    )  NYT 
-             UNPIVOT ((METRIC_VALUE)  FOR  METRIC_NAME 
-                                      IN ((CASES)  AS 'Cases to-date', 
-									      (DAILY_NEW_CASES) AS 'New Daily Cases',
-                                          (DEATHS) AS 'Deaths to-date',
-										  (DAILY_NEW_DEATHS) AS 'New Daily Deaths'
-										 )
-		             )  T2
-		 LEFT OUTER JOIN ???.FACT_INDICATOR_DASHBOARD_V F ON
-		         T2.DATE_KEY         = F.DATE_KEY             AND
-		         T2.DATE_GRANULARITY = F.DATE_GRANULARITY     AND
-		         T2.GEO_KEY          = F.GEO_KEY              AND
-		         T2.GEO_GRANULARITY  = F.GEO_GRANULARITY      AND
-		         T2.DOMAIN_NAME      = F.DOMAIN_NAME          AND
-                 T2.SUBDOMAIN_1_NAME = F.SUBDOMAIN_1_NAME     AND
-                 T2.SUBDOMAIN_2_NAME = F.SUBDOMAIN_2_NAME     AND
-                 T2.SUBDOMAIN_3_NAME = F.SUBDOMAIN_3_NAME     AND
-		         T2.METRIC_NAME      = F.METRIC_NAME
-		 LEFT OUTER JOIN (SELECT ZEROIFNULL(MAX(INDICATOR_KEY)) AS MAX_ID
-		                  FROM ???.FACT_INDICATOR_DASHBOARD_V) MAXKEY ON 
-		          1=1
- 	     WHERE
-            INS_UPD_FLAG IN ('I','U')	
-  )  STG ON  
-STG.INDICATOR_KEY = TGT.INDICATOR_KEY AND
-STG.DATE_KEY      = TGT.DATE_KEY
-WHEN NOT MATCHED THEN 
-INSERT
-  (       
-    INDICATOR_KEY,     
-    DATE_KEY,
-    DATE_GRANULARITY,
-    GEO_KEY, 
-    GEO_GRANULARITY,
-    DOMAIN_NAME,
-    SUBDOMAIN_1_NAME,
-    SUBDOMAIN_2_NAME,
-    SUBDOMAIN_3_NAME,
-    METRIC_NAME,
-    METRIC_VALUE,
-    METRIC_INDEX,
-    DATA_SOURCE_NAME,
-    DATA_SOURCE_DESC,
-    REC_INS_TS,
-    REC_UPD_TS  
-   )  VALUES 
-   (    
-    STG.INDICATOR_KEY,      
-    STG.DATE_KEY,
-    STG.DATE_GRANULARITY,
-    STG.GEO_KEY, 
-    STG.GEO_GRANULARITY,
-    STG.DOMAIN_NAME,
-    STG.SUBDOMAIN_1_NAME,
-    STG.SUBDOMAIN_2_NAME,
-    STG.SUBDOMAIN_3_NAME,
-    STG.METRIC_NAME,
-    STG.METRIC_VALUE,
-    STG.METRIC_INDEX,
-    STG.DATA_SOURCE_NAME,
-    STG.DATA_SOURCE_DESC,
-    STG.REC_INS_TS,
-    STG.REC_UPD_TS   
-  )
-WHEN MATCHED THEN
-UPDATE SET 
-    METRIC_VALUE  = STG.METRIC_VALUE,
-    METRIC_INDEX  = STG.METRIC_INDEX,
-    REC_UPD_TS    = STG.REC_UPD_TS ;
-	
-	
-	
-	
-UPDATE ???.FACT_INDICATOR_DASHBOARD_T2_P
-FROM (
-SELECT
-   F.INDICATOR_KEY,
-   F.DATE_KEY,
-   F.GEO_KEY,
-   G.POPULATION,
-   G.STATE_CODE,
-   F.DOMAIN_NAME,
-   F.METRIC_NAME,
-   F.METRIC_VALUE,
-   SUM(F.METRIC_VALUE) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE) AS TOT_METRIC_VALUE,
-   SUM(G.POPULATION) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME, G.STATE_CODE) AS TOT_POPULATION,
-   (SUM(F.METRIC_VALUE) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE) * 
-    CAST(G.POPULATION AS DECIMAL(38,6))/SUM(G.POPULATION) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE)) AS NEW_METRIC_VALUE
-FROM
-   ???.FACT_INDICATOR_DASHBOARD_V F
-   JOIN ???.DIM_GEO_LOCATION_V G ON
-   F.GEO_KEY = G.UID
-WHERE
-   F.DOMAIN_NAME = 'Covid19 NYT' AND
-   F.GEO_KEY IN (84070003,84029037,84029047,84029095,84029165,84036061,84036005,84036047,84036081,84036085) AND
-   F.DATE_KEY BETWEEN CURRENT_DATE -30 AND CURRENT_DATE
-) AS SRC
-SET METRIC_VALUE = SRC.NEW_METRIC_VALUE,
-    REC_UPD_TS      = CURRENT_TIMESTAMP(0)
-WHERE 
-   FACT_INDICATOR_DASHBOARD_T2_P.INDICATOR_KEY = SRC.INDICATOR_KEY;
-      
-END IF;
-	
------------------------------------------------------------
-SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
------------------------------------------------------------
-   
--- Incremental Load
--- 07.29.20 Changes
-MERGE INTO ???.FACT_INDICATOR_DASHBOARD_T2_P AS TGT
-USING  
-  ( 
-    SELECT 
-		  COALESCE(F.INDICATOR_KEY, MAXKEY.MAX_ID + ROW_NUMBER() OVER (ORDER BY T2.DATE_KEY, T2.GEO_KEY, T2.DOMAIN_NAME, T2.SUBDOMAIN_1_NAME, T2.SUBDOMAIN_2_NAME, T2.SUBDOMAIN_3_NAME, T2.METRIC_NAME)) AS INDICATOR_KEY,
-		  T2.DATE_KEY,
-		  T2.DATE_GRANULARITY,
-		  T2.GEO_KEY,
-		  T2.GEO_GRANULARITY,
-		  T2.DOMAIN_NAME,
-		  T2.SUBDOMAIN_1_NAME,
-		  T2.SUBDOMAIN_2_NAME,
-		  T2.SUBDOMAIN_3_NAME,
-		  T2.METRIC_NAME,
-		  T2.METRIC_VALUE,
-		  0 AS METRIC_INDEX,
-		  T2.DATA_SOURCE_NAME,
-		  T2.DATA_SOURCE_DESC,
-		  CURRENT_TIMESTAMP(0) AS REC_INS_TS,
-		  CURRENT_TIMESTAMP(0) AS REC_UPD_TS,
-		  CASE WHEN F.INDICATOR_KEY IS NULL
-		       THEN 'I'
-	    	   WHEN F.INDICATOR_KEY IS NOT NULL AND F.METRIC_VALUE <> T2.METRIC_VALUE
-			   THEN 'U'
-		       ELSE 'P'
-		  END AS INS_UPD_FLAG
-	FROM
-                    ( SELECT 
-		                  T1.DATE_KEY,
-                          'Day'  AS DATE_GRANULARITY,
-                          GK.UID AS GEO_KEY,
-                          T1.GEO_GRANULARITY,
-                          'Covid19 NYT'  DOMAIN_NAME,
-                          ' ' SUBDOMAIN_1_NAME,
-                          ' ' SUBDOMAIN_2_NAME,
-                          ' ' SUBDOMAIN_3_NAME,
-                          T1.CASES,
-						  T1.DAILY_NEW_CASES,
-		                  T1.DEATHS,
-						  T1.DAILY_NEW_DEATHS,
-                          'New York Times Covid cases/deaths reporting' AS DATA_SOURCE_NAME,
-                          'New York Times Covid cases/deaths reporting' AS DATA_SOURCE_DESC  
-                      FROM
-                            (
-                               SELECT 
-                                     COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD')) AS DATE_KEY,
-                                     CASE WHEN COALESCE(M.COUNTY,S.COUNTY) = 'Unknown'
-                                          THEN 'STATE'
-                                          ELSE COALESCE(M.GEO_GRANULARITY,'COUNTY')
-                                     END AS GEO_GRANULARITY,
-                                     COALESCE(M.COUNTY,S.COUNTY) AS COUNTY,
-                                     MIN(COALESCE(M.STATE_CODE,'ZZ')) OVER (PARTITION BY COALESCE(M.STATE_NAME,S.STATE) ORDER BY M.STATE_CODE) AS STATE_CODE,
-                                     COALESCE(M.STATE_NAME,S.STATE) AS STATE_NAME,
-				                     COALESCE(S.CASES,0) AS CASES,
-									 COALESCE(COALESCE(S.CASES - LAG(S.CASES,1) OVER (PARTITION BY COALESCE(M.COUNTY,S.COUNTY),COALESCE(M.STATE_NAME,S.STATE) 
-									                                                  ORDER BY COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD'))),S.CASES -1),0) AS DAILY_NEW_CASES,
-                                     COALESCE(S.DEATHS,0) AS DEATHS,
-									 COALESCE(COALESCE(S.DEATHS - LAG(S.DEATHS,1) OVER (PARTITION BY COALESCE(M.COUNTY,S.COUNTY),COALESCE(M.STATE_NAME,S.STATE) 
-									                                                    ORDER BY COALESCE(M.CAL_DATE_KEY,CAST(S.DATE_KEY AS DATE FORMAT 'YYYY-MM-DD'))),S.DEATHS-1),0) AS DAILY_NEW_DEATHS
-                               FROM
-                                (
-                                  SELECT 
-                                     DT.CAL_DATE_KEY,
-                                     GC.UID AS GEO_KEY,
-                                     GC.GEO_GRANULARITY,
-                                     GC.COUNTY, 
-                                     GC.COUNTY_LONG,
-                                     GC.STATE_CODE,
-                                     GC.STATE_NAME 
-                                  FROM 
-                                     ???.DIM_GEO_LOCATION_V GC
-                                     JOIN ???.DIM_CALENDAR_V DT ON
-                                     DT.CAL_DATE_KEY BETWEEN CURRENT_DATE -30 AND (SELECT MAX(DATE_KEY) FROM ???.STG_COVID19_STATS) AND
-                                     GC.GEO_GRANULARITY = 'COUNTY' AND 
-                                     GC.COUNTRY_CODE    = 'US'
-                                ) M
-                                FULL OUTER JOIN
-                                (
-                                   SELECT 
-                                      DATE_KEY,
-                                      CASE WHEN COUNTY = 'New York City'
-					                       THEN 'New York'
-						                   ELSE COUNTY
-				                      END AS COUNTY,             -- New York City is a combination of 5 counties - it will be loaded to NY County and corrected later
-                                      STATE,
-                                      CASES,
-                                      DEATHS
-                                   FROM 
-                                     ???.STG_COVID19_STATS
-                                   WHERE 
-                                     DATE_KEY BETWEEN CURRENT_DATE-30 AND (SELECT MAX(DATE_KEY) FROM ???.STG_COVID19_STATS)
-                                 ) S ON 
-                                 S.DATE_KEY = M.CAL_DATE_KEY AND
-                                 S.COUNTY IN (M.COUNTY, M.COUNTY_LONG) AND
-                                 S.STATE    = M.STATE_NAME
-                            ) T1     
-                            JOIN ???.DIM_GEO_LOCATION_V GK ON
-                            T1.GEO_GRANULARITY = GK.GEO_GRANULARITY AND
-                            T1.STATE_NAME      = GK.STATE_NAME AND 
-                            T1.COUNTY          = COALESCE(GK.COUNTY,'Unknown')	
-							WHERE T1.DATE_KEY >= CURRENT_DATE -29  -- for incremental loads, need to filter first date because the daily new cases/deaths calculation is incorrect
-                    )  NYT 
-             UNPIVOT ((METRIC_VALUE)  FOR  METRIC_NAME 
-                                      IN ((CASES)  AS 'Cases to-date', 
-									      (DAILY_NEW_CASES) AS 'New Daily Cases',
-                                          (DEATHS) AS 'Deaths to-date',
-										  (DAILY_NEW_DEATHS) AS 'New Daily Deaths'
-										 )
-		             )  T2
-		 LEFT OUTER JOIN ???.FACT_INDICATOR_DASHBOARD_V F ON
-		         T2.DATE_KEY         = F.DATE_KEY             AND
-		         T2.DATE_GRANULARITY = F.DATE_GRANULARITY     AND
-		         T2.GEO_KEY          = F.GEO_KEY              AND
-		         T2.GEO_GRANULARITY  = F.GEO_GRANULARITY      AND
-		         T2.DOMAIN_NAME      = F.DOMAIN_NAME          AND
-                 T2.SUBDOMAIN_1_NAME = F.SUBDOMAIN_1_NAME     AND
-                 T2.SUBDOMAIN_2_NAME = F.SUBDOMAIN_2_NAME     AND
-                 T2.SUBDOMAIN_3_NAME = F.SUBDOMAIN_3_NAME     AND
-		         T2.METRIC_NAME      = F.METRIC_NAME
-		 LEFT OUTER JOIN (SELECT ZEROIFNULL(MAX(INDICATOR_KEY)) AS MAX_ID
-		                  FROM ???.FACT_INDICATOR_DASHBOARD_V) MAXKEY ON 
-		          1=1
- 	     WHERE
-            INS_UPD_FLAG IN ('I','U')	
-  )  STG ON  
-STG.INDICATOR_KEY = TGT.INDICATOR_KEY AND
-STG.DATE_KEY      = TGT.DATE_KEY
-WHEN NOT MATCHED THEN 
-INSERT
-  (       
-    INDICATOR_KEY,     
-    DATE_KEY,
-    DATE_GRANULARITY,
-    GEO_KEY, 
-    GEO_GRANULARITY,
-    DOMAIN_NAME,
-    SUBDOMAIN_1_NAME,
-    SUBDOMAIN_2_NAME,
-    SUBDOMAIN_3_NAME,
-    METRIC_NAME,
-    METRIC_VALUE,
-    METRIC_INDEX,
-    DATA_SOURCE_NAME,
-    DATA_SOURCE_DESC,
-    REC_INS_TS,
-    REC_UPD_TS  
-   )  VALUES 
-   (    
-    STG.INDICATOR_KEY,      
-    STG.DATE_KEY,
-    STG.DATE_GRANULARITY,
-    STG.GEO_KEY, 
-    STG.GEO_GRANULARITY,
-    STG.DOMAIN_NAME,
-    STG.SUBDOMAIN_1_NAME,
-    STG.SUBDOMAIN_2_NAME,
-    STG.SUBDOMAIN_3_NAME,
-    STG.METRIC_NAME,
-    STG.METRIC_VALUE,
-    STG.METRIC_INDEX,
-    STG.DATA_SOURCE_NAME,
-    STG.DATA_SOURCE_DESC,
-    STG.REC_INS_TS,
-    STG.REC_UPD_TS   
-  )
-WHEN MATCHED THEN
-UPDATE SET 
-    METRIC_VALUE  = STG.METRIC_VALUE,
-    METRIC_INDEX  = STG.METRIC_INDEX,
-    REC_UPD_TS    = STG.REC_UPD_TS ;
-	
-	
------------------------------------------------------------
-SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
------------------------------------------------------------	
-
-	
-UPDATE ???.FACT_INDICATOR_DASHBOARD_T2_P
-FROM (
-SELECT
-   F.INDICATOR_KEY,
-   F.DATE_KEY,
-   F.GEO_KEY,
-   G.POPULATION,
-   G.STATE_CODE,
-   F.DOMAIN_NAME,
-   F.METRIC_NAME,
-   F.METRIC_VALUE,
-   SUM(F.METRIC_VALUE) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE) AS TOT_METRIC_VALUE,
-   SUM(G.POPULATION) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME, G.STATE_CODE) AS TOT_POPULATION,
-   (SUM(F.METRIC_VALUE) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE) * 
-    CAST(G.POPULATION AS DECIMAL(38,6))/SUM(G.POPULATION) OVER (PARTITION BY F.DATE_KEY, F.DOMAIN_NAME, F.METRIC_NAME,G.STATE_CODE)) AS NEW_METRIC_VALUE
-FROM
-   ???.FACT_INDICATOR_DASHBOARD_V F
-   JOIN ???.DIM_GEO_LOCATION_V G ON
-   F.GEO_KEY = G.UID
-WHERE
-   F.DOMAIN_NAME = 'Covid19 NYT' AND
-   F.GEO_KEY IN (84070003,84029037,84029047,84029095,84029165,84036061,84036005,84036047,84036081,84036085) AND
-   F.DATE_KEY BETWEEN CURRENT_DATE -30 AND CURRENT_DATE
-) AS SRC
-SET METRIC_VALUE = SRC.NEW_METRIC_VALUE,
-    REC_UPD_TS      = CURRENT_TIMESTAMP(0)
-WHERE 
-   FACT_INDICATOR_DASHBOARD_T2_P.INDICATOR_KEY = SRC.INDICATOR_KEY;
-   
-   
- 
------------------------------------------------------------
-SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
------------------------------------------------------------	
-
-
--- 072120 Added Moving Average Physical Tables
-DELETE FROM ???.F_IND_DASH_NYT_COVID19_GEO_7MAVG_WEEKLY_SNPSHT;
-INSERT INTO ???.F_IND_DASH_NYT_COVID19_GEO_7MAVG_WEEKLY_SNPSHT
-SELECT
-  SNAPSHOT_DATE,
-  SNAPSHOT_WEEK,
-  CURR_PREV_FLAG,
-  RANK() OVER (PARTITION BY GEO_KEY, CURR_PREV_FLAG ORDER BY DATE_KEY ASC) CAL_DAY_OF_WEEK,
-  GEO_KEY,
-  GEO_GRANULARITY,
-  COUNTY,
-  STATE_CODE,
-  STATE_NAME,
-  COUNTRY_NAME,
-  POPULATION,
-  DATE_KEY,
-  CASES_TODATE,
-  NEW_CASES,
-  DEATHS_TODATE,
-  NEW_DEATHS,
-  DENSE_RANK() OVER (PARTITION BY COUNTRY_NAME ORDER BY POPULATION DESC) AS COUNTY_POP_RNK,
-  CAST(AVG(CASES_TODATE) OVER (PARTITION BY COUNTY, STATE_NAME ORDER BY DATE_KEY DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING) AS DECIMAL(38,5)) AS CASES_TODATE_7MAVG,
-  CAST(AVG(NEW_CASES) OVER (PARTITION BY COUNTY, STATE_NAME ORDER BY DATE_KEY DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING) AS DECIMAL(38,5)) AS NEW_CASES_7MAVG,
-  CAST(AVG(DEATHS_TODATE) OVER (PARTITION BY COUNTY, STATE_NAME ORDER BY DATE_KEY DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING) AS DECIMAL(38,5)) AS DEATHS_TODATE_7MAVG,
-  CAST(AVG(NEW_DEATHS) OVER (PARTITION BY COUNTY, STATE_NAME ORDER BY DATE_KEY DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING) AS DECIMAL(38,5)) AS NEW_DEATHS_7MAVG
- FROM
-  (
-    SELECT 
-          DT.SNAPSHOT_DATE,
-          DT.SNAPSHOT_WEEK,
-          CASE WHEN F.DATE_KEY BETWEEN DT.WEEK_START_DATE AND DT.WEEK_END_DATE
-               THEN DT.CURR_PREV_FLAG
-          END AS CURR_PREV_FLAG,
-          F.GEO_KEY,
-          UPPER(F.GEO_GRANULARITY) GEO_GRANULARITY,
-          G.COUNTY, 
-          G.STATE_CODE,
-          G.STATE_NAME,
-          G.COUNTRY_NAME,
-          G.POPULATION,
-          F.DATE_KEY,
-          SUM(CASE WHEN UPPER(F.METRIC_NAME) = 'CASES TO-DATE'
-                   THEN METRIC_VALUE
-          END) AS CASES_TODATE,
-          SUM(CASE WHEN UPPER(F.METRIC_NAME) = 'NEW DAILY CASES'
-                   THEN METRIC_VALUE
-              END) AS NEW_CASES,
-          SUM(CASE WHEN UPPER(F.METRIC_NAME) = 'DEATHS TO-DATE'
-                   THEN METRIC_VALUE
-          END) AS DEATHS_TODATE,
-          SUM(CASE WHEN UPPER(F.METRIC_NAME) = 'NEW DAILY DEATHS'
-                   THEN METRIC_VALUE
-              END) AS NEW_DEATHS
-    FROM 
-      ???.FACT_INDICATOR_DASHBOARD_V F 
-      JOIN ???.DIM_GEO_LOCATION_V G ON
-      F.GEO_KEY = G.UID
-      JOIN (SELECT 
-       		MAX(WEEK_END_DATE) OVER () AS SNAPSHOT_DATE,
-       		MAX(CAL_WEEK_YEAR) OVER () AS SNAPSHOT_WEEK,
-       		MIN(WEEK_START_DATE) OVER () AS FIL_START_DATE_KEY,
-       		MAX(WEEK_END_DATE) OVER () FIL_END_DATE_KEY,
-       		CASE WHEN RNK =1 THEN 'CURR'
-            	 WHEN RNK =2 THEN 'PREV'
-            	 WHEN RNK =3 THEN 'PREV-1'
-            	 WHEN RNK =4 THEN 'PREV-2'
-				 WHEN RNK =5 THEN 'PREV-3'
-            	 ELSE 'PREV-4'
-       		END CURR_PREV_FLAG,
-       		RANK() OVER (ORDER BY WEEK_END_DATE DESC) RNK,
-       		DT.*
-    	   FROM 
-            ???.DIM_CALENDAR_V DT
-			LEFT JOIN (
-                       SELECT MAX(DATE_KEY) MAX_DT
-                       FROM ???.FACT_INDICATOR_DASHBOARD_V F  
-                       JOIN ???.DIM_GEO_LOCATION_V G ON
-                            F.GEO_KEY = G.UID
-                       WHERE F.DOMAIN_NAME = 'Covid19 NYT' AND  
-                             F.GEO_GRANULARITY = 'COUNTY'
-                      ) MAXDT ON 1=1
-           WHERE CAL_DATE_KEY IN (MAX_DT-7,MAX_DT-14,MAX_DT-21,MAX_DT-28, MAX_DT-35, MAX_DT-42)
-          ) DT ON
-       F.DATE_KEY BETWEEN DT.FIL_START_DATE_KEY AND DT.FIL_END_DATE_KEY
-    WHERE 
-      F.DOMAIN_NAME = 'Covid19 NYT' AND 
-      F.GEO_GRANULARITY = 'COUNTY'  AND
-      CASE WHEN F.DATE_KEY BETWEEN DT.WEEK_START_DATE AND DT.WEEK_END_DATE
-           THEN DT.CURR_PREV_FLAG
-      END IN ('CURR','PREV','PREV-1','PREV-2','PREV-3')
-     GROUP BY 1,2,3,4,5,6,7,8,9,10,11
-   ) T;
  
 /******************************************************************/
 --End of Transformation Logic

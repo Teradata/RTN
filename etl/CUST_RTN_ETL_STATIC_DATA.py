@@ -131,6 +131,13 @@ copy_to_sql(df = df, table_name = "TEMP_FACT_Covid_Model_Data", schema_name=para
 pd.read_sql('INSERT INTO FACT_Covid_Model_Data SELECT * FROM TEMP_FACT_Covid_Model_Data WHERE NOT EXISTS (SELECT 1 FROM FACT_Covid_Model_Data);',con)
 print("FACT_Covid_Model_Data Finished!")
 
+# DIM_DASH_VIZ_METRIC_XREF(Will load if there is no records for the first time)
+url = 'https://raw.githubusercontent.com/golestm/RTN/master/data/DIM_DASH_VIZ_METRIC_XREF.txt'
+df = pd.read_csv(url,sep="|", doublequote=True,  encoding='latin-1', dtype = {'DASHBOARD_VERSION':str})
+copy_to_sql(df = df, table_name = "TEMP_DIM_DASH_VIZ_METRIC_XREF", schema_name=params.SchemaName, if_exists = 'replace')
+pd.read_sql('INSERT INTO DIM_DASH_VIZ_METRIC_XREF SELECT * FROM TEMP_DIM_DASH_VIZ_METRIC_XREF WHERE NOT EXISTS (SELECT 1 FROM DIM_DASH_VIZ_METRIC_XREF);',con)
+print("DIM_DASH_VIZ_METRIC_XREF!")
+
 
 from datetime import datetime
 datetime.utcnow()
@@ -160,8 +167,7 @@ SELECT 'Python' as Process_Name, 'Static' as Table_Type, 'STG_BEA_PersonalConsum
 UNION \
 SELECT 'Python' as Process_Name, 'Static' as Table_Type, 'STG_BEA_PersonalConsumption_2_4_5' as TableName, count(*) as Records_Processed, max(current_timestamp(0)) as Process_Dttm FROM STG_BEA_PersonalConsumption_2_4_5 GROUP BY 1,2,3 \
 UNION \
-SELECT 'Python' as Process_Name, 'Static' as Table_Type, 'STG_COVID19_NATIONAL_ESTIMATES' as TableName, count(*) as Records_Processed, max(current_timestamp(0)) as Process_Dttm FROM STG_COVID19_NATIONAL_ESTIMATES GROUP BY 1,2,3"
-
+SELECT 'Python' as Process_Name, 'Static' as Table_Type, 'STG_COVID19_NATIONAL_ESTIMATES' as TableName, count(*) as Records_Processed, max(current_timestamp(0)) as Process_Dttm FROM STG_COVID19_NATIONAL_ESTIMATES GROUP BY 1,2,3;"
 
 
 #Fetch the data from Teradata using Pandas Dataframe
