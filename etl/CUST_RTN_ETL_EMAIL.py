@@ -62,9 +62,6 @@ import tabulate
 from tabulate import tabulate
 import base64
 
-# Needs to removed when using company SMPT Server Info
-EmailPWD = base64.b64decode("ZWxoYW0xMjM=").decode("utf-8")
-
 from datetime import datetime
 datetime.utcnow()
 dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
