@@ -41,6 +41,8 @@ from datetime import date
 from datetime import datetime, timedelta
 from datetime import datetime
 from teradataml.context.context import *
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 import params
 
 def stgToCore():
