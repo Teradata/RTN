@@ -40,6 +40,8 @@ from datetime import date
 from datetime import datetime, timedelta
 from datetime import datetime
 from teradataml.context.context import *
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 import params
 con = create_context(host=params.MyHost, username=params.MyUser, password=params.Password,temp_database_name=params.SchemaName,logmech=params.LogMech)
 
@@ -376,7 +378,7 @@ print("Census Data Finished!  " + timestampStr)
 from urllib.parse import quote_plus
 import datetime
 url = 'http://www.sca.isr.umich.edu/files/tbcics.csv'
-res = requests.get(url, proxies=params.proxies)
+res = requests.get(url)
 df = pd.read_csv(BytesIO(res.content),skiprows=[0,1,2,3],dtype = {'Unnamed: 1':str})
 df = df[['Unnamed: 0','Unnamed: 1','Unnamed: 4']]
 df = df.dropna()

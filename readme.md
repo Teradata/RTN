@@ -18,6 +18,7 @@ This application consists of the following components:
   * Tableau Version 2020.1
   * Tableau Reader Version 2020.1  (download at tableau.com)
   * Stored Procedure Creation Granted to the user
+  * SELECT WITH GRANT OPTION access to Sys_Calendar.CALENDAR.calendar_date to the user
   
 # Configuation Steps:
   * Set Database Credential Information in the file params.py
