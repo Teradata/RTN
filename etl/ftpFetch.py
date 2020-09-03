@@ -1,5 +1,5 @@
 import datetime as dt
-from ftplib import FTP
+import ftplib
 from os.path import abspath, dirname
 
 import pandas as pd
@@ -10,6 +10,12 @@ from CUST_RTN_ETL_STG_TO_CORE import stgToCore
 
 outputDir = rf'{dirname(abspath(__file__))}\..\data'
 files = []
+
+
+try:
+    FTP = params.FTP
+except AttributeError:
+    FTP = ftplib.FTP
 
 
 def isoNowTime():
