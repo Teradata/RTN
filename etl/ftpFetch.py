@@ -9,7 +9,7 @@ import teradatasql as td
 import params
 from CUST_RTN_ETL_STG_TO_CORE import stgToCore
 
-outputDir = rf'{dirname(abspath(__file__))}\..\data'
+outputDir = rf'{dirname(abspath(__file__))}\..\data\ftp'
 files = []
 
 
