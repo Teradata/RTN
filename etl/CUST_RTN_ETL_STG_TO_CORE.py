@@ -98,7 +98,8 @@ def stgToCore():
         print_complete("ETL_FUEL_PROD_CORE")
 
         con.execute(
-            "CALL {}.ETL_CONSUMER_SENTIMENT_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
+            "CALL {}.ETL_CONSUMER_SENTIMENT_CORE "
+            "(v_MsgTxt,v_RowCnt,v_ResultSet);"
             .format(params.SchemaName)
         )
         print_complete("ETL_CONSUMER_SENTIMENT_CORE")
