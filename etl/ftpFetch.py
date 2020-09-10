@@ -36,16 +36,16 @@ with FTP('ftp.teradata.com', user=params.ftpUsr, passwd=params.ftpPwd) as ftp:
     ftp.cwd('xfer')
     ftp.dir(cleanAndAppend)
 
-    for csv in files:
-        with open(rf'{outputDir}\{csv}', 'w') as f:
+    for fname in files:
+        with open(rf'{outputDir}\{fname}', 'w') as f:
             def writeLine(line):
                 try:
                     f.write(line)
                 except UnicodeEncodeError:
                     line = ''.join(c for c in line if c.isprintable())
                 f.write('\n')
-            ftp.retrlines(f'RETR {csv}', writeLine)
-        printUpd(f'{csv} Downloaded')
+            ftp.retrlines(f'RETR {fname}', writeLine)
+        printUpd(f'{fname} Downloaded')
 
 input('Please connect to VPN and press enter.')
 
