@@ -38,6 +38,8 @@ import getpass
 from covid19dh import covid19
 import json
 from requests_html import HTMLSession
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 import params
 con = create_context(host=params.MyHost, username=params.MyUser, password=params.Password,temp_database_name=params.SchemaName,logmech=params.LogMech)
 

@@ -4849,7 +4849,7 @@ BEGIN
 DECLARE v_CoreTable VARCHAR(100) DEFAULT 'FACT_Covid_Model_Data';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_COVID_MODEL_CORE';
-DECLARE v_Date_Key_Val VARCHAR(30);
+DECLARE v_Date_Key_Val DATE;
 DECLARE v_Message VARCHAR(200);
 
 /* Exception Handling when when SQL Exception occurs */
@@ -7167,16 +7167,26 @@ DECLARE v_CoreTable VARCHAR(100) DEFAULT 'NA';
 DECLARE v_RecordsAffected INTEGER DEFAULT 0;
 DECLARE v_ProcName VARCHAR(100) DEFAULT 'ETL_POST_LOAD_CORE';
 DECLARE sqlstr VARCHAR(10000);
-DECLARE v_Message VARCHAR(200);
+
 
 /* Exception Handling when when SQL Exception occurs */
-DECLARE EXIT HANDLER FOR SQLEXCEPTION
-BEGIN
-	GET DIAGNOSTICS EXCEPTION 1
-	v_Message = MESSAGE_TEXT;
-	INSERT INTO ???.ETL_Proc_Error_Logs (Sql_Code,Logged_Time,Sql_State,Error_Text,Procedure_Name)
-	VALUES(:SQLCODE,CURRENT_TIMESTAMP(0),:SQLSTATE,v_Message,v_ProcName);
-	--
+DECLARE   EXIT HANDLER FOR SQLEXCEPTION
+BEGIN  
+		INSERT INTO ???.ETL_Proc_Error_Logs
+		( Sql_Code
+		  ,Logged_Time
+		  ,Sql_State
+		  ,Error_Text
+		  ,Procedure_Name
+		)
+		SELECT
+		        :SQLCODE
+		        ,CURRENT_TIMESTAMP(0) 
+		        ,:SQLSTATE
+		        ,ErrorText || 'while executing proc' ||Procedure_Name
+		        ,v_ProcName AS Procedure_Name
+		FROM DBC.ERRORMSGS 
+		WHERE ERRORCODE= :SQLCODE;
 	SET v_ResultSet=1;
 	SET v_MsgTxt='Error,refer to ETL_Proc_Error_Logs';
 END;
@@ -7223,6 +7233,7 @@ COLLECT STATISTICS ON ???.DIM_GEO_LOCATION_T COLUMN (County);
 COLLECT STATISTICS ON ???.F_IND_DASH_NYT_COVID19_GEO_7MAVG_WEEKLY_SNPSHT COLUMN (GEO_KEY);
 COLLECT STATISTICS ON ???.FACT_INDICATOR_DASHBOARD_T2_P COLUMN (DATA_SOURCE_NAME,GEO_KEY);
 COLLECT STATISTICS ON ???.FACT_INDICATOR_DASHBOARD_T2_P COLUMN (DOMAIN_NAME);
+COLLECT STATISTICS ON ???.FACT_COVID19_DATAHUB COLUMN (GEO_KEY);
 
 /******************************************************************/
 --End of Transformation Logic
