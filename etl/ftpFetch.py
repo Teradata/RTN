@@ -1,3 +1,4 @@
+import csv
 import datetime as dt
 import ftplib
 from os.path import abspath, dirname
@@ -56,12 +57,11 @@ with td.connect(
 ) as con:
     for fname in files:
         tbl = f'{params.SchemaName}.{fname[:fname.rindex(".")]}'
-        with open(rf'{outputDir}\{fname}') as f:
+        with open(rf'{outputDir}\{fname}', newline='') as f:
             data = [
-                [
-                    None if not value.strip('"\n') else value.strip('"\n')
-                    for value in row.split('|')
-                ] for row in f.readlines()
+                [None if not item else item for item in row]
+                for row in csv.reader(f, delimiter='|')
+                if row
             ]
         header = data.pop(0)
         colList = ','.join(f'"{col}"' for col in header)
