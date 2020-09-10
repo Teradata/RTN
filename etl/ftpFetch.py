@@ -67,16 +67,23 @@ with td.connect(
         colList = ','.join(f'"{col}"' for col in header)
         paramList = ','.join(['?'] * len(header))
 
-        flSetupStmnt =  "{fn teradata_nativesql}{fn teradata_autocommit_off}"
+        flSetupStmnt = "{fn teradata_nativesql}{fn teradata_autocommit_off}"
         delStmnt = f'delete from {tbl}'
         insStmnt = (
             f'{"{fn teradata_try_fastload}" if len(data) > 1e6 else ""}'
             f'insert into {tbl} ({colList}) values ({paramList})'
         )
-        with con.cursor() as cur:
-            cur.execute(flSetupStmnt)
-            cur.execute(delStmnt)
-            cur.execute(insStmnt, data)
-            con.commit()
-        printUpd(f'{fname} Inserted')
+        try:
+            with con.cursor() as cur:
+                cur.execute(flSetupStmnt)
+                cur.execute(delStmnt)
+                cur.execute(insStmnt, data)
+                con.commit()
+            printUpd(f'{fname} Inserted')
+        except td.OperationalError as e:
+            if 'does not exist' in str(e):
+                printUpd(f'--> {fname} Skipped')
+            else:
+                raise e
+
 stgToCore()
