@@ -39,81 +39,80 @@ def stgToCore():
             try:
                 # Core Load Calls to Teradata
                 cur.execute(
-                    "CALL {}.ETL_CUST_DATA_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_CUST_DATA_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_CUST_DATA_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_LOOKUP_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_LOOKUP_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_LOOKUP_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_COVID_CASES_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_COVID_CASES_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_COVID_CASES_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_LABOR_STATS_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_LABOR_STATS_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_LABOR_STATS_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_COVID_MODEL_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_COVID_MODEL_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_COVID_MODEL_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_GOOGLE_MOBILITY_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_GOOGLE_MOBILITY_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_GOOGLE_MOBILITY_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_BEA_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_BEA_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_BEA_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_GOOGLE_TREND_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_GOOGLE_TREND_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_GOOGLE_TREND_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_COVID19_DATAHUB_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_COVID19_DATAHUB_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_COVID19_DATAHUB_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_FUEL_PROD_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_FUEL_PROD_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_FUEL_PROD_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_CONSUMER_SENTIMENT_CORE "
+                    f"CALL {params.SchemaName}.ETL_CONSUMER_SENTIMENT_CORE "
                     "(v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
                 )
                 print_complete("ETL_CONSUMER_SENTIMENT_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_TSA_TRAVEL_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_TSA_TRAVEL_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_TSA_TRAVEL_CORE")
 
                 cur.execute(
-                    "CALL {}.ETL_CENSUS_DATA_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_CENSUS_DATA_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_CENSUS_DATA_CORE")
 
@@ -122,8 +121,8 @@ def stgToCore():
 
             finally:
                 cur.execute(
-                    "CALL {}.ETL_POST_LOAD_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);"
-                    .format(params.SchemaName)
+                    f"CALL {params.SchemaName}.ETL_POST_LOAD_CORE "
+                    "(v_MsgTxt,v_RowCnt,v_ResultSet);"
                 )
                 print_complete("ETL_POST_LOAD_CORE")
 
