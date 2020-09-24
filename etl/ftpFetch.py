@@ -10,7 +10,7 @@ import schedule as skd
 import teradatasql as td
 
 import params
-from common import print_complete, header
+from common import print_complete, headText
 from CUST_RTN_ETL_STG_TO_CORE import stgToCore
 
 outputDir = rf'{dirname(abspath(__file__))}\..\data\ftp'
@@ -29,9 +29,9 @@ def cleanAndAppend(line):
 
 
 def ftpMain():
-    print(header('Downloading from FTP'))
+    print(headText('Downloading from FTP'))
     with FTP() as ftp:
-        ftp.connect(params.ftpPxy, ftpPrt)
+        ftp.connect(params.ftpPxy, params.ftpPrt)
         ftp.login(f'{params.ftpUsr}@ftp.teradata.com', params.ftpPwd)
         ftp.cwd('xfer')
         ftp.dir(cleanAndAppend)
@@ -47,7 +47,7 @@ def ftpMain():
                 ftp.retrlines(f'RETR {fname}', writeLine)
             print_complete(f'{fname} Downloaded')
 
-    print(f'\n\n{header("Uploading to TD")}')
+    print(f'\n\n{headText("Uploading to TD")}')
     with td.connect(
         host=params.MyHost,
         user=params.MyUser,
@@ -85,14 +85,15 @@ def ftpMain():
                 else:
                     raise e
 
-    print(f'\n\n{header("Running Transformation Procedures")}')
+    print(f'\n\n{headText("Running Transformation Procedures")}')
     stgToCore()
 
 if __name__ == "__main__":
-    run('title TD Covid Resiliency ETL', shell=True)
-    print('Waiting for TD Covid Resiliency ETL to begin...')
+    ftpMain()
+    # run('title TD Covid Resiliency ETL', shell=True)
+    # print('Waiting for TD Covid Resiliency ETL to begin...')
 
-    skd.every().day.at('15:05').do(ftpMain)
-    while True:
-        skd.run_pending()
-        time.sleep(skd.idle_seconds())
+    # skd.every().day.at('15:05').do(ftpMain)
+    # while True:
+    #     skd.run_pending()
+    #     time.sleep(skd.idle_seconds())
