@@ -92,7 +92,7 @@ if __name__ == "__main__":
     run('title TD Covid Resiliency ETL', shell=True)
     print('Waiting for TD Covid Resiliency ETL to begin...')
 
-    skd.every().day.at('16:00').do(ftpMain)
+    skd.every().day.at('15:05').do(ftpMain)
     while True:
         skd.run_pending()
         time.sleep(skd.idle_seconds())
