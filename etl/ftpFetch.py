@@ -32,7 +32,9 @@ def cleanAndAppend(line):
         files.append(line[line.rindex(' ')+1:])
 
 
-with FTP('ftp.teradata.com', user=params.ftpUsr, passwd=params.ftpPwd) as ftp:
+with FTP() as ftp:
+    ftp.connect(params.ftpPxy, ftpPrt)
+    ftp.login(f'{params.ftpUsr}@ftp.teradata.com', params.ftpPwd)
     ftp.cwd('xfer')
     ftp.dir(cleanAndAppend)
 
@@ -46,8 +48,6 @@ with FTP('ftp.teradata.com', user=params.ftpUsr, passwd=params.ftpPwd) as ftp:
                 f.write('\n')
             ftp.retrlines(f'RETR {fname}', writeLine)
         printUpd(f'{fname} Downloaded')
-
-input('Please connect to VPN and press enter.')
 
 with td.connect(
     host=params.MyHost,
