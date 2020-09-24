@@ -1,9 +1,12 @@
 import csv
 import datetime as dt
 import ftplib
+import time
 from os.path import abspath, dirname
+from subprocess import run
 
 import pandas as pd
+import schedule as skd
 import teradatasql as td
 
 import params
@@ -86,4 +89,10 @@ def ftpMain():
     stgToCore()
 
 if __name__ == "__main__":
-    ftpMain()
+    run('title TD Covid Resiliency ETL', shell=True)
+    print('Waiting for TD Covid Resiliency ETL to begin...')
+
+    skd.every().day.at('16:00').do(ftpMain)
+    while True:
+        skd.run_pending()
+        time.sleep(skd.idle_seconds())
