@@ -89,11 +89,10 @@ def ftpMain():
     stgToCore()
 
 if __name__ == "__main__":
-    ftpMain()
-    # run('title TD Covid Resiliency ETL', shell=True)
-    # print('Waiting for TD Covid Resiliency ETL to begin...')
+    run('title TD Covid Resiliency ETL', shell=True)
+    print('Waiting for TD Covid Resiliency ETL to begin...')
 
-    # skd.every().day.at('15:05').do(ftpMain)
-    # while True:
-    #     skd.run_pending()
-    #     time.sleep(skd.idle_seconds())
+    skd.every().day.at('15:05').do(ftpMain)
+    while True:
+        skd.run_pending()
+        time.sleep(skd.idle_seconds())
