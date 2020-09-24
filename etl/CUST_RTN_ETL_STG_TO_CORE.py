@@ -145,10 +145,10 @@ def stgToCore():
                 ");"
             )
 
-            # %%
-            #Fetch the data from Teradata using Pandas Dataframe
-            pda = pd.read_sql(query,cur)
-            print(pda)
+        # %%
+        #Fetch the data from Teradata using Pandas Dataframe
+        pda = pd.read_sql(query,con)
+        print(pda)
 
 
 if __name__ == "__main__":
