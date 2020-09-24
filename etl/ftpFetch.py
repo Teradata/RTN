@@ -7,6 +7,7 @@ import pandas as pd
 import teradatasql as td
 
 import params
+from common import print_complete, header
 from CUST_RTN_ETL_STG_TO_CORE import stgToCore
 
 outputDir = rf'{dirname(abspath(__file__))}\..\data\ftp'
@@ -19,19 +20,13 @@ except AttributeError:
     FTP = ftplib.FTP
 
 
-def isoNowTime():
-    return dt.datetime.now().isoformat(sep=' ', timespec='seconds')
-
-
-def printUpd(s):
-    print(f'{s}: {isoNowTime()}')
-
-
 def cleanAndAppend(line):
     if line.endswith('.txt'):
         files.append(line[line.rindex(' ')+1:])
 
+
 def ftpMain():
+    print(header('Downloading from FTP'))
     with FTP() as ftp:
         ftp.connect(params.ftpPxy, ftpPrt)
         ftp.login(f'{params.ftpUsr}@ftp.teradata.com', params.ftpPwd)
@@ -47,8 +42,9 @@ def ftpMain():
                         line = ''.join(c for c in line if c.isprintable())
                     f.write('\n')
                 ftp.retrlines(f'RETR {fname}', writeLine)
-            printUpd(f'{fname} Downloaded')
+            print_complete(f'{fname} Downloaded')
 
+    print(f'\n\n{header("Uploading to TD")}')
     with td.connect(
         host=params.MyHost,
         user=params.MyUser,
@@ -79,13 +75,14 @@ def ftpMain():
                     cur.execute(delStmnt)
                     cur.execute(insStmnt, data)
                     con.commit()
-                printUpd(f'{fname} Inserted')
+                print_complete(f'{fname} Inserted')
             except td.OperationalError as e:
                 if 'does not exist' in str(e):
-                    printUpd(f'--> {fname} Skipped')
+                    print_complete(f'--> {fname} Skipped')
                 else:
                     raise e
 
+    print(f'\n\n{header("Running Transformation Procedures")}')
     stgToCore()
 
 if __name__ == "__main__":

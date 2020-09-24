@@ -1,6 +1,7 @@
 import datetime as dt
 
-def print_complete(dsName):
-    print('{} Finished! {}'.format(
-        dsName, dt.datetime.now().strftime("%d-%b-%Y (%H:%M:%S.%f)")
-    ))
+def print_complete(s):
+    print(f'{s}: {dt.datetime.now().isoformat(sep=" ", timespec="seconds")}')
+
+def print_header(s):
+    return s.center(80, '-')
