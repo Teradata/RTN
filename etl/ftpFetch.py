@@ -39,10 +39,9 @@ def ftpMain():
         for fname in files:
             with open(rf'{outputDir}\{fname}', 'w') as f:
                 def writeLine(line):
-                    try:
-                        f.write(line)
-                    except UnicodeEncodeError:
+                    if not line.isprintable():
                         line = ''.join(c for c in line if c.isprintable())
+                    f.write(line)
                     f.write('\n')
                 ftp.retrlines(f'RETR {fname}', writeLine)
             print_complete(f'{fname} Downloaded')
