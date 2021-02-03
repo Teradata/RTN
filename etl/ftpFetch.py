@@ -14,7 +14,6 @@ from common import print_complete, headText
 from CUST_RTN_ETL_STG_TO_CORE import stgToCore
 
 outputDir = rf'{dirname(abspath(__file__))}\..\data\ftp'
-files = []
 
 
 try:
@@ -23,18 +22,18 @@ except AttributeError:
     FTP = ftplib.FTP
 
 
-def cleanAndAppend(line):
-    if line.endswith('.txt'):
-        files.append(line[line.rindex(' ')+1:])
-
-
 def ftpMain():
+    files = []
     print(headText('Downloading from FTP'))
     with FTP() as ftp:
         ftp.connect(params.ftpPxy, params.ftpPrt)
         ftp.login(f'{params.ftpUsr}@ftp.teradata.com', params.ftpPwd)
         ftp.cwd('xfer')
-        ftp.dir(cleanAndAppend)
+
+        def cleanAndAppend(fname):
+            if fname.endswith('.txt') and '-' not in fname:
+                files.append(fname)
+        ftp.retrlines('NLST', cleanAndAppend)
 
         for fname in files:
             with open(rf'{outputDir}\{fname}', 'w') as f:
