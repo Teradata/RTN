@@ -34,13 +34,16 @@ def ftpMain():
         ftp.retrlines('NLST', cleanAndAppend)
 
         for fname in files:
-            with open(rf'{outputDir}\{fname}', 'w') as f:
-                def writeLine(line):
-                    if not line.isprintable():
-                        line = ''.join(c for c in line if c.isprintable())
-                    f.write(line)
-                    f.write('\n')
-                ftp.retrlines(f'RETR {fname}', writeLine)
+            with open(rf'{outputDir}\{fname}', 'wb') as f:
+                def writeLine(data):
+                    for line in data.split(b'\n'):
+                        if not line.isascii():
+                            line = b''.join(
+                                bytes([c]) for c in line if bytes([c]).isascii()
+                            )
+                        f.write(line)
+                        f.write(b'\n')
+                ftp.retrbinary(f'RETR {fname}', writeLine)
             print_complete(f'{fname} Downloaded')
 
     print(f'\n\n{headText("Uploading to TD")}')
