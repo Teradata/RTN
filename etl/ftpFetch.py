@@ -1,11 +1,9 @@
 import csv
-import datetime as dt
 import ftplib
 import time
 from os.path import abspath, dirname
 from subprocess import run
 
-import pandas as pd
 import schedule as skd
 import teradatasql as td
 
