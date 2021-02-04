@@ -1176,6 +1176,73 @@ CREATE MULTISET TABLE ???.STG_US_CENSUS_SURVEY ,FALLBACK ,
 PRIMARY INDEX ( Period );
 
 
+CREATE MULTISET TABLE ???.STG_Estimated_Inpatient_All ,FALLBACK ,
+     NO BEFORE JOURNAL,
+     NO AFTER JOURNAL,
+     CHECKSUM = DEFAULT,
+     DEFAULT MERGEBLOCKRATIO,
+     MAP = TD_MAP1
+     (
+      state VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      collection_date VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Inpatient Beds Occupied Estimated" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Count LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Count UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage of Inpatient Beds Occupied Estimated" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total Inpatient Beds" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      current_dttm TIMESTAMP(6))
+NO PRIMARY INDEX ;
+
+
+
+CREATE MULTISET TABLE ???.STG_Estimated_Inpatient_Covid ,FALLBACK ,
+     NO BEFORE JOURNAL,
+     NO AFTER JOURNAL,
+     CHECKSUM = DEFAULT,
+     DEFAULT MERGEBLOCKRATIO,
+     MAP = TD_MAP1
+     (
+      state VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      collection_date VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Inpatient Beds Occupied by COVID-19 Patients Estimated" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Count LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Count UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage of Inpatient Beds Occupied by COVID-19 Patients Estimated" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total Inpatient Beds" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      current_dttm TIMESTAMP(6))
+NO PRIMARY INDEX ;
+
+
+
+CREATE MULTISET TABLE ???.STG_Estimated_Icu ,FALLBACK ,
+     NO BEFORE JOURNAL,
+     NO AFTER JOURNAL,
+     CHECKSUM = DEFAULT,
+     DEFAULT MERGEBLOCKRATIO,
+     MAP = TD_MAP1
+     (
+      state VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      collection_date VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "ICU Beds Occupied Estimated" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Count LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Count UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage of ICU Beds Occupied Estimated" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Percentage UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total ICU Beds" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total LL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      "Total UL" VARCHAR(1024) CHARACTER SET UNICODE NOT CASESPECIFIC,
+      current_dttm TIMESTAMP(6))
+NO PRIMARY INDEX ;
+
 CREATE MULTISET TABLE ???.Transaltion_Table ,FALLBACK ,
      NO BEFORE JOURNAL,
      NO AFTER JOURNAL,
@@ -1189,6 +1256,73 @@ CREATE MULTISET TABLE ???.Transaltion_Table ,FALLBACK ,
       CLNSNG_DESC VARCHAR(200) CHARACTER SET UNICODE NOT CASESPECIFIC)
 PRIMARY INDEX ( CLNSNG_CD ,CLNSNG_SRC );
 
+
+CREATE MULTISET TABLE ???.F_IND_DASH_EST_HOSP_ICU ,FALLBACK ,
+    NO BEFORE JOURNAL,
+    NO AFTER JOURNAL,
+    CHECKSUM = DEFAULT,
+    DEFAULT MERGEBLOCKRATIO,
+    MAP = TD_MAP1
+    (
+    STATE_CD VARCHAR(10) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    COLLECTION_DATE_KEY DATE NOT NULL,
+    EST_ICU_OCC_BEDS INTEGER,
+    LOW_EST_INPATIENT_OCC_BEDS INTEGER,
+    HIGH_EST_INPATIENT_OCC_BEDS INTEGER,
+    EST_PERC_ICU_OCC_BEDS DECIMAL(6,3),
+    LOW_EST_PERC_ICU_OCC_BEDS DECIMAL(6,3),
+    HIGH_EST_PERC_ICU_OCC_BEDS DECIMAL(6,3),
+    TOT_ICU_BEDS INTEGER,
+    LOW_EST_TOT_ICU_BEDS INTEGER,
+    HIGH_EST_TOT_ICU_BEDS INTEGER,
+    REC_INS_UPD_TS TIMESTAMP(0))
+    UNIQUE PRIMARY INDEX (STATE_CD, COLLECTION_DATE_KEY) ;
+    
+    
+CREATE MULTISET TABLE ???.F_IND_DASH_EST_HOSP_INPATIENT ,FALLBACK ,
+    NO BEFORE JOURNAL,
+    NO AFTER JOURNAL,
+    CHECKSUM = DEFAULT,
+    DEFAULT MERGEBLOCKRATIO,
+    MAP = TD_MAP1
+    (
+    STATE_CD VARCHAR(10) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    COLLECTION_DATE_KEY DATE NOT NULL,
+    EST_INPAT_OCC_BEDS INTEGER,
+    LOW_EST_INPATIENT_OCC_BEDS INTEGER,
+    HIGH_EST_INPATIENT_OCC_BEDS INTEGER,
+    EST_PERC_INPATIENT_OCC_BEDS DECIMAL(6,3),
+    LOW_EST_PERC_INPATIENT_OCC_BEDS DECIMAL(6,3),
+    HIGH_EST_PERC_INPATIENT_OCC_BEDS DECIMAL(6,3),
+    TOT_INPATIENT_BEDS INTEGER,
+    LOW_EST_TOT_INPATIENT_BEDS INTEGER,
+    HIGH_EST_TOT_INPATIENT_BEDS INTEGER,
+    REC_INS_UPD_TS TIMESTAMP(0))
+   UNIQUE PRIMARY INDEX (STATE_CD, COLLECTION_DATE_KEY) ;
+   
+   
+   
+CREATE MULTISET TABLE ???.F_IND_DASH_EST_HOSP_COVID_INPATIENT ,FALLBACK ,
+    NO BEFORE JOURNAL,
+    NO AFTER JOURNAL,
+    CHECKSUM = DEFAULT,
+    DEFAULT MERGEBLOCKRATIO,
+    MAP = TD_MAP1
+    (
+    STATE_CD VARCHAR(10) CHARACTER SET LATIN NOT CASESPECIFIC NOT NULL,
+    COLLECTION_DATE_KEY DATE NOT NULL,
+    EST_COVID_OCC_BEDS INTEGER,
+    LOW_EST_COVID_OCC_BEDS INTEGER,
+    HIGH_EST_COVID_OCC_BEDS INTEGER,
+    EST_PERC_COVID_OCC_BEDS DECIMAL(6,3),
+    LOW_EST_PERC_COVID_OCC_BEDS DECIMAL(6,3),
+    HIGH_EST_PERC_COVID_OCC_BEDS DECIMAL(6,3),
+    TOT_INPATIENT_BEDS INTEGER,
+    LOW_EST_TOT_INPATIENT_BEDS INTEGER,
+    HIGH_EST_TOT_INPATIENT_BEDS INTEGER,
+    REC_INS_UPD_TS TIMESTAMP(0))
+   UNIQUE PRIMARY INDEX (STATE_CD, COLLECTION_DATE_KEY);
+   
 
 REPLACE VIEW ???.DIM_DASH_VIZ_METRIC_XREF_V AS
     LOCKING ROW FOR ACCESS
@@ -1243,13 +1377,13 @@ REPLACE VIEW ???.DIM_GEO_LOCATION_V AS
         FIPS,
         County,
         County_long,
-            STATE_NAME,
-            STATE_CODE,
-            COUNTRY_NAME,
-            Lat,
-            Lon,
-            Combined_Key,
-            Population
+        STATE_NAME,
+        STATE_CODE,
+        COUNTRY_NAME,
+        Lat,
+        Lon,
+        Combined_Key,
+        Population
         FROM ???.DIM_GEO_LOCATION_T
     UNION ALL
     SELECT 
@@ -1269,7 +1403,29 @@ REPLACE VIEW ???.DIM_GEO_LOCATION_V AS
         CAST(NULL AS VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC) Combined_Key,
         CAST(NULL AS INTEGER) Population
         FROM ???.DIM_GEO_LOCATION_T
-        WHERE uid = 840;
+        WHERE uid = 840
+	UNION ALL
+	SELECT  
+        90000000 + cast(b.zipcode as integer) UID,
+        'ZIPCODE' GEO_GRANULARITY,
+        a.Country_code,
+        a.iso3,
+        a.code3,
+        a.FIPS,
+        a.County,
+        a.County_long,
+        a.STATE_NAME,
+        a.STATE_CODE,
+        a.COUNTRY_NAME,
+        null Lat,
+        null Lon,
+        a.Combined_Key,
+        null Population
+FROM ???.DIM_GEO_LOCATION_T a
+        join 
+???.DIM_ZIPCODE_COUNTY_MSA_LKUP_V b
+on a.fips = b.county_fips
+and a.geo_granularity = 'county';
 
 
 REPLACE VIEW  ???.DIM_PEOPLE_LOCATION_V AS
@@ -1431,37 +1587,79 @@ REPLACE VIEW ???.FACT_INDICATOR_DASHBOARD_V  AS
 
 REPLACE VIEW ???.F_IND_DASH_COVID_NAT_ESTIMATES_V AS
     LOCKING ROW FOR ACCESS
-    SELECT 
-
-	STATE STATE_CD,
-    STATENAME STATE_NAME,
-    COLLECTIONDATE DATE_KEY,
-    INPATBEDS_OCC_ANYPAT_EST,
-    INPATBEDS_OCC_ANYPAT_LOCI,
-    INPATBEDS_OCC_ANYPAT_UPCI,
-    INPATBEDS_OCC_ANYPAT_EST_AVAIL,
-    INBEDSOCCANYPAT__NUMBEDS_EST,
-    INBEDSOCCANYPAT__NUMBEDS_LOCI,
-    INBEDSOCCANYPAT__NUMBEDS_UPCI,
-    INPATBEDS_OCC_COVID_EST,
-    INPATBEDS_OCC_COVID_LOCI,
-    INPATBEDS_OCC_COVID_UPCI,
-    INBEDSOCCCOVID__NUMBEDS_EST,
-    INBEDSOCCCOVID__NUMBEDS_LOCI,
-    INBEDSOCCCOVID__NUMBEDS_UPCI,
-    ICUBEDS_OCC_ANYPAT_EST,
-    ICUBEDS_OCC_ANYPAT_LOCI,
-    ICUBEDS_OCC_ANYPAT_UPCI,
-    ICUBEDS_OCC_ANYPAT_EST_AVAIL,
-    ICUBEDSOCCANYPAT__N_ICUBEDS_EST,
-    ICUBEDSOCCANYPAT__N_ICUBEDS_LOCI,
-    ICUBEDSOCCANYPAT__N_ICUBEDS_UPCI,
-    NOTES,
-    LABEL1,
-    LABEL2,
-    LABEL3,
-    LABEL4
-    FROM ???.STG_COVID19_NATIONAL_ESTIMATES;
+        SELECT 
+        STATE AS STATE_CD,
+        STATENAME AS STATE_NAME,
+        CAST(COLLECTIONDATE AS DATE FORMAT 'YYYY-MM-DD') AS DATE_KEY,
+        CAST(INPATBEDS_OCC_ANYPAT_EST       AS INTEGER) AS INPATBEDS_OCC_ANYPAT_EST,  
+        CAST(INPATBEDS_OCC_ANYPAT_LOCI      AS INTEGER) AS INPATBEDS_OCC_ANYPAT_LOCI,
+        CAST(INPATBEDS_OCC_ANYPAT_UPCI      AS INTEGER) AS INPATBEDS_OCC_ANYPAT_UPCI,
+        CAST(INPATBEDS_OCC_ANYPAT_EST_AVAIL AS INTEGER) AS INPATBEDS_OCC_ANYPAT_EST_AVAIL,
+        CAST(INBEDSOCCANYPAT__NUMBEDS_EST   AS DECIMAL(6,3)) AS INBEDSOCCANYPAT__NUMBEDS_EST,
+        CAST(INBEDSOCCANYPAT__NUMBEDS_LOCI  AS DECIMAL(6,3)) AS INBEDSOCCANYPAT__NUMBEDS_LOCI,
+        CAST(INBEDSOCCANYPAT__NUMBEDS_UPCI  AS DECIMAL(6,3)) AS INBEDSOCCANYPAT__NUMBEDS_UPCI,
+        CAST(INPATBEDS_OCC_COVID_EST        AS INTEGER) AS INPATBEDS_OCC_COVID_EST,
+        CAST(INPATBEDS_OCC_COVID_LOCI       AS INTEGER) AS INPATBEDS_OCC_COVID_LOCI,
+        CAST(INPATBEDS_OCC_COVID_UPCI       AS INTEGER) AS INPATBEDS_OCC_COVID_UPCI,
+        CAST(INBEDSOCCCOVID__NUMBEDS_EST    AS DECIMAL(6,3)) AS INBEDSOCCCOVID__NUMBEDS_EST,
+        CAST(INBEDSOCCCOVID__NUMBEDS_LOCI   AS DECIMAL(6,3)) AS INBEDSOCCCOVID__NUMBEDS_LOCI,
+        CAST(INBEDSOCCCOVID__NUMBEDS_UPCI   AS DECIMAL(6,3)) AS INBEDSOCCCOVID__NUMBEDS_UPCI,
+        CAST(ICUBEDS_OCC_ANYPAT_EST         AS INTEGER) AS ICUBEDS_OCC_ANYPAT_EST,
+        CAST(ICUBEDS_OCC_ANYPAT_LOCI        AS INTEGER) AS ICUBEDS_OCC_ANYPAT_LOCI,
+        CAST(ICUBEDS_OCC_ANYPAT_UPCI        AS INTEGER) AS ICUBEDS_OCC_ANYPAT_UPCI,
+        CAST(ICUBEDS_OCC_ANYPAT_EST_AVAIL   AS INTEGER) AS ICUBEDS_OCC_ANYPAT_EST_AVAIL,
+        CAST(ICUBEDSOCCANYPAT__N_ICUBEDS_EST  AS DECIMAL(6,3)) AS ICUBEDSOCCANYPAT__N_ICUBEDS_EST,
+        CAST(ICUBEDSOCCANYPAT__N_ICUBEDS_LOCI AS DECIMAL(6,3)) AS ICUBEDSOCCANYPAT__N_ICUBEDS_LOCI,
+        CAST(ICUBEDSOCCANYPAT__N_ICUBEDS_UPCI AS DECIMAL(6,3)) AS ICUBEDSOCCANYPAT__N_ICUBEDS_UPCI
+        FROM ???.STG_COVID19_NATIONAL_ESTIMATES
+        WHERE COLLECTIONDATE < '2020-07-12'
+        
+        UNION ALL
+        
+        SELECT
+         IP.STATE_CD,
+         G.STATE_NAME AS STATE_NAME,
+         IP.COLLECTION_DATE_KEY AS DATE_KEY ,
+         IP.EST_INPAT_OCC_BEDS,
+         IP.LOW_EST_INPATIENT_OCC_BEDS,
+         IP.HIGH_EST_INPATIENT_OCC_BEDS,
+         (IP.TOT_INPATIENT_BEDS - IP.EST_INPAT_OCC_BEDS),
+         IP.EST_PERC_INPATIENT_OCC_BEDS,
+         IP.LOW_EST_PERC_INPATIENT_OCC_BEDS,
+         IP.HIGH_EST_PERC_INPATIENT_OCC_BEDS,
+         CIP.EST_COVID_OCC_BEDS ,
+         CIP.LOW_EST_COVID_OCC_BEDS,
+         CIP.HIGH_EST_COVID_OCC_BEDS,
+         CIP.EST_PERC_COVID_OCC_BEDS,
+         CIP.LOW_EST_PERC_COVID_OCC_BEDS,
+         CIP.HIGH_EST_PERC_COVID_OCC_BEDS,
+         ICU.EST_ICU_OCC_BEDS,
+         ICU.LOW_EST_PERC_ICU_OCC_BEDS,
+         ICU.HIGH_EST_PERC_ICU_OCC_BEDS,
+         (ICU.TOT_ICU_BEDS - ICU.EST_ICU_OCC_BEDS),
+         ICU.EST_PERC_ICU_OCC_BEDS,
+         ICU.LOW_EST_PERC_ICU_OCC_BEDS,
+         ICU.HIGH_EST_PERC_ICU_OCC_BEDS
+        FROM
+         ???.F_IND_DASH_EST_HOSP_INPATIENT IP
+         LEFT JOIN ???.F_IND_DASH_EST_HOSP_ICU ICU ON
+         IP.STATE_CD = ICU.STATE_CD AND
+         IP.COLLECTION_DATE_KEY = ICU.COLLECTION_DATE_KEY
+         LEFT JOIN ???.F_IND_DASH_EST_HOSP_COVID_INPATIENT CIP ON
+         IP.STATE_CD = CIP.STATE_CD AND
+         IP.COLLECTION_DATE_KEY = CIP.COLLECTION_DATE_KEY
+         JOIN (SELECT STATE_CODE, STATE_NAME 
+               FROM ???.DIM_GEO_LOCATION_V
+               WHERE COUNTRY_CODE = 'US'
+               GROUP BY 1,2
+               UNION ALL
+               SELECT COUNTRY_CODE AS STATE_CODE,
+               COUNTRY_NAME AS STATE_NAME
+               FROM ???.DIM_GEO_LOCATION_V
+               WHERE COUNTRY_CODE = 'US'
+               GROUP BY 1,2) G ON
+         IP.STATE_CD = G.STATE_CODE
+         WHERE IP.COLLECTION_DATE_KEY >= '2020-07-12';
 
 
 REPLACE VIEW ???.F_IND_DASH_Covid_Projections_Curr_V AS
@@ -3475,7 +3673,13 @@ FROM (
 	UNION
 	SELECT 'Consumer Sentiment Index','STG_Consumer_Sentiment_Index' as StagingTable,'http://www.sca.isr.umich.edu/files/tbcics.csv', MAX(CAST(SUBSTR("Month",1,3)||'-'||"Year" AS DATE FORMAT 'MMM-YYYY')) FROM ???.STG_Consumer_Sentiment_Index
 	UNION
-	SELECT 'Consumer Price Index','STG_Labor_Stats_CUSR0000SA0' as StagingTable,'https://api.bls.gov/publicAPI/v2/timeseries/data', MAX(CAST(year_key||'-'||oreplace(period_key,'M',null) AS DATE FORMAT 'YYYY-MM')) FROM ???.STG_Labor_Stats_CUSR0000SA0) t1
+	SELECT 'Consumer Price Index','STG_Labor_Stats_CUSR0000SA0' as StagingTable,'https://api.bls.gov/publicAPI/v2/timeseries/data', MAX(CAST(year_key||'-'||oreplace(period_key,'M',null) AS DATE FORMAT 'YYYY-MM')) FROM ???.STG_Labor_Stats_CUSR0000SA0
+	UNION
+	SELECT 'Hospitalization','STG_Estimated_Inpatient_All' as StagingTable,'https://healthdata.gov/node/3281096/download', MAX(CAST(Collection_Date AS DATE FORMAT 'YYYY-MM-DD')) FROM ???.STG_Estimated_Inpatient_All
+	UNION
+	SELECT 'Hospitalization','STG_Estimated_Inpatient_Covid' as StagingTable,'https://healthdata.gov/node/3281101/download', MAX(CAST(Collection_Date AS DATE FORMAT 'YYYY-MM-DD')) FROM ???.STG_Estimated_Inpatient_Covid
+	UNION
+	SELECT 'Hospitalization','STG_Estimated_Icu' as StagingTable,'https://healthdata.gov/node/3281106/download', MAX(CAST(Collection_Date AS DATE FORMAT 'YYYY-MM-DD')) FROM ???.STG_Estimated_Icu) t1
 	--
 FULL OUTER JOIN (SELECT CASE WHEN Metric_Name IN ('Household - Clothing & Footwear','Household - Food Services & Accommodation','Personal Consumption Expenditure (Product Details)') THEN 'BEA - Personal Consumption 2-4-5'
 						WHEN Metric_Name IN ('US Product Supplied 4WKAVG') THEN 'Fuel Production'
@@ -3505,6 +3709,15 @@ FULL OUTER JOIN (SELECT CASE WHEN Metric_Name IN ('Household - Clothing & Footwe
 			UNION
 			SELECT 'COVID19 Projections','COVID19 Projection Metrics','FACT_Covid_Model_Data', MAX(Date_Key) as MaxAvailableDate
 			FROM ???.FACT_Covid_Model_Data
+			UNION
+			SELECT 'Hospitalization','Hospital Inpatient ICU Metrics','F_IND_DASH_EST_HOSP_ICU', MAX(COLLECTION_DATE_KEY) as MaxAvailableDate
+			FROM ???.F_IND_DASH_EST_HOSP_ICU
+			UNION
+			SELECT 'Hospitalization','Hospital Inpatient Metrics','F_IND_DASH_EST_HOSP_INPATIENT', MAX(COLLECTION_DATE_KEY) as MaxAvailableDate
+			FROM ???.F_IND_DASH_EST_HOSP_INPATIENT
+			UNION
+			SELECT 'Hospitalization','Hospital Covid Inpatient Metrics','F_IND_DASH_EST_HOSP_COVID_INPATIENT', MAX(COLLECTION_DATE_KEY) as MaxAvailableDate
+			FROM ???.F_IND_DASH_EST_HOSP_COVID_INPATIENT
 			) t2
 			--
 ON t2.Category = t1.Category;
@@ -4840,6 +5053,8 @@ Date           	Ver#		Modified By(Name)       	Version Comments
 07/11/2020		2.0			Teradata DW					Added the insert to FACT_Covid_Model_Data_SUM as target
 07/25/2020		3.0			Teradata DW					Modified the STG_Summary_stats_all_locs to not be based on path date
 07/29/2020		4.0			Teradata DW					Modified the State join to be US only
+10/02/2020		5.0			Teradata DW					Added the new source of hospitalization data
+10/07/2020		6.0			Teradata DW					The source data column naming changed casuing the proc to break
 */
 /*****************************************************************************************************/
 SQL SECURITY INVOKER
@@ -5458,6 +5673,69 @@ IF v_Date_Key_Val <> '9999-12-31'(DATE) THEN
 	    null  );
 		--
 END IF;
+
+ -- 10/02/20 Changes
+----------------------------------------------------------- 
+SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
+----------------------------------------------------------- 
+
+INSERT INTO ???.F_IND_DASH_EST_HOSP_ICU
+SELECT "state",
+    "collection_date",
+    "Staffed Adult ICU Beds Occupied Estimated",
+    "Count LL",
+    "Count UL",
+    "Percentage of Staffed Adult ICU Beds Occupied Estimated",
+    "Percentage LL",
+    "Percentage UL",
+    "Total Staffed Adult ICU Beds",
+    "Total LL",
+    "Total UL",
+    CURRENT_TIMESTAMP(0)
+    FROM ???.STG_Estimated_Icu
+    WHERE (state, collection_date) not in (SELECT STATE_CD, COLLECTION_DATE_KEY FROM ???.F_IND_DASH_EST_HOSP_ICU);
+	
+	----------------------------------------------------------- 
+	SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
+	----------------------------------------------------------- 
+	
+INSERT INTO ???.F_IND_DASH_EST_HOSP_INPATIENT
+SELECT "state",
+    "collection_date",
+    "Inpatient Beds Occupied Estimated",
+    "Count LL",
+    "Count UL",
+    "Percentage of Inpatient Beds Occupied Estimated",
+    "Percentage LL",
+    "Percentage UL",
+    "Total Inpatient Beds",
+    "Total LL",
+    "Total UL",
+    CURRENT_TIMESTAMP(0)
+    FROM ???.STG_Estimated_Inpatient_All
+    WHERE (state, collection_date) not in (SELECT STATE_CD, COLLECTION_DATE_KEY FROM ???.F_IND_DASH_EST_HOSP_INPATIENT);
+	
+	----------------------------------------------------------- 
+	SET v_RecordsAffected = v_RecordsAffected + ACTIVITY_COUNT;
+	----------------------------------------------------------- 
+	
+INSERT INTO ???.F_IND_DASH_EST_HOSP_COVID_INPATIENT
+SELECT "state",
+    "collection_date",
+    "Inpatient Beds Occupied by COVID-19 Patients Estimated",
+    "Count LL",
+    "Count UL",
+    "Percentage of Inpatient Beds Occupied by COVID-19 Patients Estimated",
+    "Percentage LL",
+    "Percentage UL",
+    "Total Inpatient Beds",
+    "Total LL",
+    "Total UL",
+    CURRENT_TIMESTAMP(0)
+    FROM ???.STG_Estimated_Inpatient_Covid
+     WHERE (state, collection_date) not in (SELECT STATE_CD, COLLECTION_DATE_KEY FROM ???.F_IND_DASH_EST_HOSP_COVID_INPATIENT);
+	 
+ -- 10/02/20 End of Changes 
  
 /******************************************************************/
 --End of Transformation Logic
@@ -7156,7 +7434,8 @@ Procedure syntax  : CALL ETL_POST_LOAD_CORE (v_MsgTxt,v_RowCnt,v_ResultSet);
 Null - Represnts Success
 Date           	Ver#		Modified By(Name)       	Version Comments                   
 -----------   	-------     -------------------------	----------------------------                       
-07/09/2020      1.0         Teradata DW              	Initial                                         					
+07/09/2020      1.0         Teradata DW              	Initial
+10/05/2020		2.0			Teradata DW              	Added more stats collection for hospitalization data
 */
 /*****************************************************************************************************/
 
@@ -7234,6 +7513,9 @@ COLLECT STATISTICS ON ???.F_IND_DASH_NYT_COVID19_GEO_7MAVG_WEEKLY_SNPSHT COLUMN 
 COLLECT STATISTICS ON ???.FACT_INDICATOR_DASHBOARD_T2_P COLUMN (DATA_SOURCE_NAME,GEO_KEY);
 COLLECT STATISTICS ON ???.FACT_INDICATOR_DASHBOARD_T2_P COLUMN (DOMAIN_NAME);
 COLLECT STATISTICS ON ???.FACT_COVID19_DATAHUB COLUMN (GEO_KEY);
+COLLECT STATISTICS COLUMN (STATE_CD, COLLECTION_DATE_KEY) ON ???.F_IND_DASH_EST_HOSP_ICU;
+COLLECT STATISTICS COLUMN (STATE_CD, COLLECTION_DATE_KEY) ON ???.F_IND_DASH_EST_HOSP_INPATIENT;
+COLLECT STATISTICS COLUMN (STATE_CD, COLLECTION_DATE_KEY) ON ???.F_IND_DASH_EST_HOSP_COVID_INPATIENT;
 
 /******************************************************************/
 --End of Transformation Logic
