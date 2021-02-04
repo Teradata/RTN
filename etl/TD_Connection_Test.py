@@ -11,7 +11,7 @@
 # Libraries
 #############################################################
 pip install ipython
-pip install --upgrade covid19dh
+pip install covid19dh==1.0.0
 pip install numpy --upgrade
 pip install requests
 pip3 install tabulate

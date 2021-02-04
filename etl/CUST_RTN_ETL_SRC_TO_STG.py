@@ -143,19 +143,23 @@ kw_list = [a]
 pytrends.build_payload(kw_list, timeframe=timeframe,geo='US')
 iot = pytrends.interest_over_time()
 iot = iot.rename(columns={a: 'Metric_value'})
-iot['Trend_Name'] = 'Covid Search'
-iot['Metric_Name'] = 'Covid'
+iot['Trend_Name']='Covid Search'
+iot['Metric_Name']='Covid'
 iot['current_dttm'] = dt.datetime.today()
-iot['Keyword_List'] = a
-iot['Cat_CD'] = cat
-iot['Type'] = 'Interest over time'
+iot['Keyword_List'] =a
+iot['Cat_CD']=cat
+iot['Type'] ='Interest over time'
+
+iot['isPartial'] = iot['isPartial'].astype(str).str.replace('True','1')
+iot['isPartial'] = iot['isPartial'].astype(str).str.replace('False','0')
+
 copy_to_sql(
     df=iot, table_name="STG_Google_Search_IOT", schema_name=params.SchemaName,
     index=True, if_exists="replace"
 )
 
-a = ''
-cat = '1085'
+a=''
+cat='1085'
 kw_list = [a]
 pytrends.build_payload(kw_list, cat=cat, timeframe=timeframe,geo='US')
 iot = pytrends.interest_over_time()
@@ -166,6 +170,10 @@ iot['current_dttm'] = dt.datetime.today()
 iot['Keyword_List'] = a
 iot['Cat_CD'] = cat
 iot['Type'] ='Interest over time'
+
+iot['isPartial'] = iot['isPartial'].astype(str).str.replace('True','1')
+iot['isPartial'] = iot['isPartial'].astype(str).str.replace('False','0')
+
 copy_to_sql(
     df=iot, table_name="STG_Google_Search_IOT", schema_name=params.SchemaName,
     index=True, if_exists="append"
@@ -183,6 +191,8 @@ iot['current_dttm'] = dt.datetime.today()
 iot['Keyword_List'] = a
 iot['Cat_CD'] = cat
 iot['Type'] ='Interest over time'
+iot['isPartial'] = iot['isPartial'].astype(str).str.replace('True','1')
+iot['isPartial'] = iot['isPartial'].astype(str).str.replace('False','0')
 copy_to_sql(
     df=iot, table_name="STG_Google_Search_IOT", schema_name=params.SchemaName,
     index=True, if_exists="append"
@@ -384,7 +394,7 @@ print_complete('Census Data')
 
 # %%
 #############################################################
-# 11) Consumer Sentiment Index
+# 12) Consumer Sentiment Index
 #############################################################
 url = 'http://www.sca.isr.umich.edu/files/tbcics.csv'
 res = rq.get(url, proxies=params.proxies)
@@ -407,6 +417,34 @@ copy_to_sql(
 print_complete('Consumer Sentiment Index')
 
 # %%
+#############################################################
+# 13) Estimated Hospitalization
+#############################################################
+import datetime
+url = 'https://healthdata.gov/node/3281096/download'
+df = pd.read_csv(url, dtype='unicode')
+df['current_dttm'] = datetime.datetime.today()
+copy_to_sql(df = df, table_name = "STG_Estimated_Inpatient_All", schema_name=params.SchemaName, if_exists = 'replace')
+
+url = 'https://healthdata.gov/node/3281101/download'
+df = pd.read_csv(url, dtype='unicode')
+df['current_dttm'] = datetime.datetime.today()
+copy_to_sql(df = df, table_name = "STG_Estimated_Inpatient_Covid", schema_name=params.SchemaName, if_exists = 'replace')
+
+url = 'https://healthdata.gov/node/3281106/download'
+df = pd.read_csv(url, dtype='unicode')
+df['current_dttm'] = datetime.datetime.today()
+copy_to_sql(df = df, table_name = "STG_Estimated_Icu", schema_name=params.SchemaName, if_exists = 'replace')
+
+
+
+from datetime import datetime
+datetime.utcnow()
+dateTimeObj = pytz.utc.localize(datetime.utcnow()).astimezone(pytz.timezone('US/Pacific'))
+timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
+print("Estimated Hospitalization!  " + timestampStr)
+
+
 #############################################################
 # Printing the Load Summary Stats
 #############################################################

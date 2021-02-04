@@ -33,6 +33,7 @@ This application consists of the following components:
 # Installation Steps:
   * Create a seperate database instance (15-20 Gigs of Perm Space) 
   * Initiate a Teradata session through SQL Assistant, Teradata Studio or BTEQ
+  * If using Teradata Studio, under "JDBC Connection Properties", click on "Add" and Set TMODE='TERA'
   * Run CUST_RTN_Install.ddl Install through successful completion
   * Check the logs and database for additional Tables/Views/Stored Procedures
   * Run Python Script CUST_RTN_ETL_STATIC_DATA.py for initial static table load as well as first initial load
