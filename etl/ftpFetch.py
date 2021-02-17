@@ -35,15 +35,7 @@ def ftpMain():
 
         for fname in files:
             with open(rf'{outputDir}\{fname}', 'wb') as f:
-                def writeLine(data):
-                    for line in data.split(b'\n'):
-                        if not line.isascii():
-                            line = b''.join(
-                                bytes([c]) for c in line if bytes([c]).isascii()
-                            )
-                        f.write(line)
-                        f.write(b'\n')
-                ftp.retrbinary(f'RETR {fname}', writeLine)
+                ftp.retrbinary(f'RETR {fname}', f.write)
             print_complete(f'{fname} Downloaded')
 
     print(f'\n\n{headText("Uploading to TD")}')
@@ -55,12 +47,21 @@ def ftpMain():
     ) as con:
         for fname in files:
             tbl = f'{params.SchemaName}.{fname[:fname.rindex(".")]}'
-            with open(rf'{outputDir}\{fname}', newline='') as f:
-                data = [
-                    [None if not item else item for item in row]
-                    for row in csv.reader(f, delimiter='|')
-                    if row
-                ]
+            for enc in ('utf8', 'cp1252'):
+                try:
+                    with open(
+                        rf'{outputDir}\{fname}', newline='', encoding=enc
+                    ) as f:
+                        data = [
+                            [None if not item else item for item in row]
+                            for row in csv.reader(f, delimiter='|')
+                            if row
+                        ]
+                    break
+                except UnicodeDecodeError as e:
+                    continue
+            else:
+                raise e
             header = data.pop(0)
             colList = ','.join(f'"{col}"' for col in header)
             paramList = ','.join(['?'] * len(header))
