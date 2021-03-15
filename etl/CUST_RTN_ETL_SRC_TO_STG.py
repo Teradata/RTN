@@ -412,17 +412,19 @@ print("Consumer Sentiment Index!  " + timestampStr)
 # 13) Estimated Hospitalization
 #############################################################
 import datetime
-url = 'https://healthdata.gov/node/3281096/download'
+# TODO all of the healthdata.gov urls have changed as they migrate to a new API. 
+# Code needs to be ported to use new urls, but the legacy domain will restore functionality temporarily. 
+url = 'https://legacy.healthdata.gov/node/3281096/download'
 df = pd.read_csv(url, dtype='unicode')
 df['current_dttm'] = datetime.datetime.today()
 copy_to_sql(df = df, table_name = "STG_Estimated_Inpatient_All", schema_name=params.SchemaName, if_exists = 'replace')
 
-url = 'https://healthdata.gov/node/3281101/download'
+url = 'https://legacy.healthdata.gov/node/3281101/download'
 df = pd.read_csv(url, dtype='unicode')
 df['current_dttm'] = datetime.datetime.today()
 copy_to_sql(df = df, table_name = "STG_Estimated_Inpatient_Covid", schema_name=params.SchemaName, if_exists = 'replace')
 
-url = 'https://healthdata.gov/node/3281106/download'
+url = 'https://legacy.healthdata.gov/node/3281106/download'
 df = pd.read_csv(url, dtype='unicode')
 df['current_dttm'] = datetime.datetime.today()
 copy_to_sql(df = df, table_name = "STG_Estimated_Icu", schema_name=params.SchemaName, if_exists = 'replace')
